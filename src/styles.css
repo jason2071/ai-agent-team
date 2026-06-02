@@ -890,15 +890,33 @@ body {
   top: 64px;
   width: 230px;
   max-height: 70vh;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: rgba(10,14,26,0.82);
   border: 1px solid rgba(125,211,252,0.22);
   border-radius: 10px;
-  padding: 0 12px 12px;
   backdrop-filter: blur(4px);
   z-index: 4;
   box-shadow: 0 0 24px rgba(99,102,241,0.15);
 }
+/* body = ส่วนเดียวที่ scroll (scrollbar อยู่ใต้ header ไม่พาด header) */
+.op-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 12px 12px;
+  /* scrollbar โทนดำเข้มเหมือน panel แต่อ่อนกว่านิดให้เห็นต่าง (standard prop = WKWebView honor) */
+  scrollbar-width: thin;
+  scrollbar-color: #28324c #0c1120;
+}
+.op-body::-webkit-scrollbar { width: 8px; }
+.op-body::-webkit-scrollbar-track { background: #0c1120; border-radius: 999px; }
+.op-body::-webkit-scrollbar-thumb {
+  background: #28324c;
+  border-radius: 999px;
+}
+.op-body::-webkit-scrollbar-thumb:hover { background: #3a496e; }
 .office-panel.left { left: 18px; }
 .office-panel.right { right: 18px; }
 .op-head {
@@ -906,27 +924,23 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  width: 100%;
   box-sizing: border-box;
   font-size: 11px;
   letter-spacing: 1px;
   color: #7dd3fc;
-  /* sticky header: คงที่ ไม่เลื่อน — เฉพาะ items ด้านล่าง scroll */
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: rgba(10,14,26,0.96);
+  /* header เต็มกว้าง คงที่ — flex child ไม่ scroll */
+  flex-shrink: 0;
+  padding: 10px 12px 7px;
+  background: rgba(10,14,26,0.5);
   border: none;
   border-bottom: 1px solid rgba(125,211,252,0.2);
-  padding: 10px 0 6px;
-  margin-bottom: 8px;
+  border-radius: 10px 10px 0 0;
   cursor: pointer;
   font-family: "Space Mono", monospace;
   text-align: left;
 }
 .op-caret { color: #7dd3fc; opacity: 0.7; font-size: 10px; }
-.office-panel.collapsed { padding-bottom: 8px; }
-.office-panel.collapsed .op-head { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+.office-panel.collapsed .op-head { border-bottom: none; border-radius: 10px; }
 .op-row {
   display: flex;
   align-items: center;

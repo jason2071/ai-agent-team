@@ -121,16 +121,19 @@ export function OfficeView({
           <span>สมาชิกกิลด์ · {runningCount}/{agents.length} active</span>
           <span className="op-caret">{collapsed.left ? "▸" : "▾"}</span>
         </button>
-        {!collapsed.left &&
-          agents.map((a) => (
-            <div key={a.id} className="op-row" onClick={() => onSelect(a.id)}>
-              <span className="dot-accent" style={{ background: a.accent }} />
-              <span className="op-name">{a.name}</span>
-              <span className={`op-stat ${isBusy(a.id) ? "run" : ""}`}>
-                {isBusy(a.id) ? "RUNNING" : "IDLE"}
-              </span>
-            </div>
-          ))}
+        {!collapsed.left && (
+          <div className="op-body">
+            {agents.map((a) => (
+              <div key={a.id} className="op-row" onClick={() => onSelect(a.id)}>
+                <span className="dot-accent" style={{ background: a.accent }} />
+                <span className="op-name">{a.name}</span>
+                <span className={`op-stat ${isBusy(a.id) ? "run" : ""}`}>
+                  {isBusy(a.id) ? "RUNNING" : "IDLE"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* panel: activity feed */}
@@ -140,7 +143,7 @@ export function OfficeView({
           <span className="op-caret">{collapsed.right ? "▸" : "▾"}</span>
         </button>
         {!collapsed.right && (
-          <>
+          <div className="op-body">
             {feed.length === 0 && <div className="op-empty">ยังไม่มีเควสต์ — คลิกนักผจญภัยเริ่มสั่งงาน</div>}
             {feed.slice(0, 7).map((f, i) => (
               <div key={i} className="feed-item">
@@ -148,7 +151,7 @@ export function OfficeView({
                 <span>{f.text}</span>
               </div>
             ))}
-          </>
+          </div>
         )}
       </div>
     </div>

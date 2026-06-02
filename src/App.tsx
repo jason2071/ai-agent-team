@@ -9,6 +9,7 @@ import { AGENTS, type Agent } from "./agents";
 import { Avatar } from "./components/Avatar";
 import { ManageAgents } from "./components/ManageAgents";
 import { OfficeView } from "./components/OfficeView";
+import { FEATURE_WF, parseVerdict, type Workflow, type WFRun } from "./workflow";
 import "./styles.css";
 
 type StreamEvent =
@@ -145,6 +146,10 @@ export default function App() {
     task: string;
     cwd: string | null;
   } | null>(null);
+  // workflow engine (v2) — ref = source of truth (กัน stale), wf = สำหรับ render banner
+  const wfRef = useRef<WFRun | null>(null);
+  const [wf, setWf] = useState<WFRun | null>(null);
+  const syncWf = () => setWf(wfRef.current ? { ...wfRef.current } : null);
   // global project folder — agent ทุกตัวใช้ร่วมกันเป็น default (ทำงาน project เดียวกัน)
   const [projectDir, setProjectDir] = useState<string | null>(persisted.projectDir);
   // override per-agent — ถ้าตั้งใจให้ตัวนี้ทำงานคนละ folder (ไม่มี = ใช้ projectDir)
@@ -251,6 +256,140 @@ export default function App() {
     setChain(null);
   }
 
+  // ===== Workflow engine (v2) =====
+  function startWorkflow(def: Workflow, task: string, cwd: string | null) {
+    if (wfRef.current?.status === "running") return;
+    wfRef.current = {
+      wf: def,
+      task,
+      cwd,
+      results: {},
+      retries: {},
+      running: {},
+      joinArrived: {},
+      status: "running",
+      log: [`▶ เริ่ม ${def.name}`],
+    };
+    syncWf();
+    startWFNode(def.start);
+  }
+
+  function startWFNode(nodeId: string) {
+    const run = wfRef.current;
+    if (!run || run.status !== "running") return;
+    const node = run.wf.nodes[nodeId];
+    if (!node) return;
+
+    if (node.kind === "fork") {
+      run.log.push(`⑂ ${node.title}`);
+      syncWf();
+      for (const b of node.branches) startWFNode(b);
+      return;
+    }
+    if (node.kind === "join") return; // trigger ผ่าน routeTo เมื่อครบ
+    if (node.kind === "done") {
+      run.status = "done";
+      run.log.push(`✓ ${node.title}`);
+      syncWf();
+      chainNotify("Workflow เสร็จครบ ✓");
+      return;
+    }
+
+    // task | gate
+    const agent = agents.find((a) => a.id === node.agent);
+    if (!agent) {
+      run.status = "halted";
+      run.log.push(`✗ ไม่พบ agent: ${node.agent}`);
+      syncWf();
+      return;
+    }
+    if (isBusy(agent.id)) {
+      run.log.push(`⚠ ${agent.name} ยุ่งอยู่ — ${node.title} รอไม่ได้`);
+      syncWf();
+      return;
+    }
+    const prompt = node.build({ task: run.task, results: run.results });
+    run.running[agent.id] = node.id;
+    run.log.push(`▸ ${node.title}`);
+    syncWf();
+    setActiveId(agent.id); // ตามดูตัวที่กำลังทำ
+    runFor(agent, prompt, `[WF: ${node.title}]`, run.cwd, null);
+  }
+
+  function routeWF(targetId: string) {
+    const run = wfRef.current;
+    if (!run) return;
+    const t = run.wf.nodes[targetId];
+    if (!t) return;
+    if (t.kind === "join") {
+      const n = (run.joinArrived[targetId] ?? 0) + 1;
+      run.joinArrived[targetId] = n;
+      if (n >= t.expected) {
+        run.log.push(`⑃ ${t.title} ครบ`);
+        syncWf();
+        startWFNode(t.next);
+      } else {
+        syncWf(); // รอ branch อื่น
+      }
+      return;
+    }
+    startWFNode(targetId);
+  }
+
+  // agent ใน workflow ทำเสร็จ -> เดินกราฟต่อ (เรียกจาก done/error)
+  function advanceWorkflow(agentId: string, ok: boolean) {
+    const run = wfRef.current;
+    if (!run || run.status !== "running") return;
+    const nodeId = run.running[agentId];
+    if (!nodeId) return; // agent นี้ไม่ได้อยู่ใน workflow
+    delete run.running[agentId];
+    const node = run.wf.nodes[nodeId];
+    run.results[nodeId] = lastAssistantOf(agentId);
+
+    if (!ok) {
+      run.status = "halted";
+      run.log.push(`✗ ${"title" in node ? node.title : nodeId} error — หยุด workflow`);
+      syncWf();
+      chainNotify("Workflow หยุด — เจอ error");
+      return;
+    }
+
+    if (node.kind === "task") {
+      syncWf();
+      routeWF(node.next);
+    } else if (node.kind === "gate") {
+      const v = parseVerdict(run.results[nodeId]);
+      if (v === "PASS") {
+        run.log.push(`✓ ${node.title}: PASS`);
+        syncWf();
+        routeWF(node.onPass);
+      } else {
+        // FAIL หรือ parse ไม่เจอ (ถือว่า FAIL กันปล่อยผ่าน)
+        const cnt = (run.retries[nodeId] ?? 0) + 1;
+        run.retries[nodeId] = cnt;
+        if (cnt > node.maxRetry) {
+          run.status = "halted";
+          run.log.push(`✗ ${node.title}: ไม่ผ่านครบ ${node.maxRetry} รอบ — หยุด`);
+          syncWf();
+          chainNotify(`Workflow หยุด: ${node.title} ไม่ผ่าน ${node.maxRetry} รอบ`);
+        } else {
+          run.log.push(`↩ ${node.title}: ${v ?? "ไม่พบ verdict"} — ตีกลับ (รอบ ${cnt}/${node.maxRetry})`);
+          syncWf();
+          startWFNode(node.onFail);
+        }
+      }
+    }
+  }
+
+  function stopWorkflow() {
+    const run = wfRef.current;
+    if (!run) return;
+    for (const aid of Object.keys(run.running)) stop(aid);
+    run.status = "halted";
+    run.log.push("■ หยุดโดยผู้ใช้");
+    syncWf();
+  }
+
   // จัดการ event ที่ Rust ส่งกลับมาทาง Channel (เรียกต่อ 1 send)
   function handleEvent(ev: StreamEvent) {
     if (ev.kind === "session") {
@@ -279,6 +418,7 @@ export default function App() {
       setToolStatus((t) => { const n = { ...t }; delete n[ev.agent_id]; return n; });
       notifyDone(ev.agent_id, true);
       advanceChain(ev.agent_id, true);
+      advanceWorkflow(ev.agent_id, true);
       return;
     }
     if (ev.kind === "error") {
@@ -287,6 +427,7 @@ export default function App() {
       setToolStatus((t) => { const n = { ...t }; delete n[ev.agent_id]; return n; });
       notifyDone(ev.agent_id, false);
       advanceChain(ev.agent_id, false);
+      advanceWorkflow(ev.agent_id, false);
     }
   }
 
@@ -612,6 +753,27 @@ export default function App() {
           </div>
         )}
 
+        {wf && (
+          <div className={`wf-banner ${wf.status}`}>
+            <div className="wf-head">
+              <span className="wf-name">🧭 {wf.wf.name}</span>
+              <span className="wf-status">
+                {wf.status === "running" ? "กำลังรัน" : wf.status === "done" ? "เสร็จ ✓" : "หยุด"}
+              </span>
+              {wf.status === "running" ? (
+                <button className="chain-stop" onClick={stopWorkflow}>หยุด</button>
+              ) : (
+                <button className="chain-stop" onClick={() => { wfRef.current = null; setWf(null); }}>ปิด</button>
+              )}
+            </div>
+            <div className="wf-log">
+              {wf.log.slice(-4).map((l, i) => (
+                <div key={i} className="wf-line">{l}</div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="messages" ref={scrollRef}>
           {messages.length === 0 && (
             <div className="empty">เริ่มสั่งงาน {active.name} ได้เลย</div>
@@ -695,6 +857,19 @@ export default function App() {
             )}
             <button className="tool-btn" onClick={attachFiles} title="แนบไฟล์">
               📎 แนบไฟล์
+            </button>
+            <button
+              className="tool-btn"
+              title="รัน Feature Pipeline: Serena→Mia→(Yuri∥Kelvin)→review→integrate→review"
+              disabled={!input.trim() || wf?.status === "running"}
+              onClick={() => {
+                const task = input.trim();
+                if (!task) return;
+                setInput("");
+                startWorkflow(FEATURE_WF, task, effectiveCwd(activeId));
+              }}
+            >
+              🧭 Quest
             </button>
             {attached.map((f, i) => (
               <span key={i} className="chip" title={f.name}>

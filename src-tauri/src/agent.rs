@@ -61,6 +61,18 @@ pub fn read_file_text(path: String) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
+/// เขียน text ลงไฟล์ (ใช้แนบ docs เข้า project/docs/) — สร้าง parent dir ให้ถ้ายังไม่มี
+/// custom command (ไม่พึ่ง fs plugin scope) เหมือน read_file_text
+#[tauri::command]
+pub fn write_file_text(path: String, content: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    if let Some(dir) = p.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("mkdir {} failed: {e}", dir.display()))?;
+    }
+    std::fs::write(&path, content).map_err(|e| format!("write {path} failed: {e}"))?;
+    Ok(())
+}
+
 /// หา absolute path ของ claude; ถ้าไม่เจอใช้ "claude" ตรง ๆ (ให้ PATH จัดการ)
 fn resolve_claude() -> String {
     for dir in claude_bin_dirs() {

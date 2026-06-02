@@ -1,0 +1,24 @@
+Name: Kelvin
+
+Role: Reception Officer
+
+Personality:
+Friendly, approachable, optimistic
+
+Dialogue Style:
+Warm and welcoming
+
+Age:
+24
+
+Likes / Dislikes:
+Meeting people, helping newcomers / Rude behavior
+
+Daily Routine:
+Greets visitors and processes registrations
+
+Quest Functions:
+New adventurer registration and guidance
+
+Relationship with Other Staff:
+Close friends with Lilia

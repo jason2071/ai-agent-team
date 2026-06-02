@@ -53,10 +53,8 @@ export function OfficeView({
 
   return (
     <div className="office">
-      {/* ฉากห้อง */}
+      {/* ฉากห้อง — bg = /assets/guild.png */}
       <div className="office-room">
-        <div className="room-window" />
-        <div className="room-floor" />
 
         {agents.map((a, i) => {
           const slot = SLOTS[i % SLOTS.length];
@@ -86,13 +84,13 @@ export function OfficeView({
 
       {/* top bar */}
       <div className="office-top">
-        <h1 className="brand">AGENT<span>OFFICE</span></h1>
-        <button className="office-toggle" onClick={onManage}>⚙ จัดการ agent</button>
+        <h1 className="brand">GUILD<span>นักผจญภัย</span></h1>
+        <button className="office-toggle" onClick={onManage}>⚙ จัดการนักผจญภัย</button>
       </div>
 
-      {/* panel: สถานะทีม */}
+      {/* panel: สถานะกิลด์ */}
       <div className="office-panel left">
-        <div className="op-head">AI AGENTS · {runningCount}/{agents.length} active</div>
+        <div className="op-head">สมาชิกกิลด์ · {runningCount}/{agents.length} active</div>
         {agents.map((a) => (
           <div key={a.id} className="op-row" onClick={() => onSelect(a.id)}>
             <span className="dot-accent" style={{ background: a.accent }} />
@@ -106,8 +104,8 @@ export function OfficeView({
 
       {/* panel: activity feed */}
       <div className="office-panel right">
-        <div className="op-head">TEAM ACTIVITY</div>
-        {feed.length === 0 && <div className="op-empty">ยังไม่มีงาน — คลิกตัวละครเริ่มสั่งงาน</div>}
+        <div className="op-head">GUILD ACTIVITY</div>
+        {feed.length === 0 && <div className="op-empty">ยังไม่มีเควสต์ — คลิกนักผจญภัยเริ่มสั่งงาน</div>}
         {feed.slice(0, 7).map((f, i) => (
           <div key={i} className="feed-item">
             <b style={{ color: f.accent }}>{f.name}</b>

@@ -469,7 +469,19 @@ body {
   font-family: "Space Mono", monospace;
   color: #cdd6f4;
 }
-.office-room { position: absolute; inset: 0; }
+.office-room {
+  position: absolute;
+  inset: 0;
+  background: #060912 url(/assets/guild.png) center / cover no-repeat;
+}
+/* vignette ให้ desk-tag/avatar อ่านออกเหนือรูป */
+.office-room::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 42%, transparent 38%, rgba(4,6,14,0.55) 100%);
+}
 
 /* หน้าต่าง neon city ด้านหลัง */
 .room-window {

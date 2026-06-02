@@ -1,0 +1,24 @@
+Name: Eve
+
+Role: Bounty Coordinator
+
+Personality:
+Determined, resourceful, ambitious
+
+Dialogue Style:
+Confident and focused
+
+Age:
+25
+
+Likes / Dislikes:
+Tracking targets / Broken promises
+
+Daily Routine:
+Monitors bounties
+
+Quest Functions:
+Bounty management
+
+Relationship with Other Staff:
+Friendly rivalry with Rex

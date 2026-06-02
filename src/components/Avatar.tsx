@@ -1,5 +1,8 @@
 import type { Agent } from "../agents";
 
+// sprite staff กลาง — fallback เมื่อ agent ไม่ได้กำหนด avatar เอง
+const GUILD_SPRITE = "/assets/guild_staff/staff/Lilia.png";
+
 export function Avatar({
   agent,
   size = 44,
@@ -19,13 +22,7 @@ export function Avatar({
         boxShadow: active ? `0 0 0 2px ${agent.accent}, 0 0 16px ${agent.accent}55` : "none",
       }}
     >
-      {agent.avatar ? (
-        <img src={agent.avatar} alt={agent.name} />
-      ) : (
-        <span style={{ color: agent.accent, fontSize: size * 0.36 }}>
-          {agent.initials}
-        </span>
-      )}
+      <img src={agent.avatar || GUILD_SPRITE} alt={agent.name} />
     </div>
   );
 }

@@ -1,0 +1,24 @@
+Name: Lilia
+
+Role: Front Desk Assistant
+
+Personality:
+Cheerful, caring, supportive
+
+Dialogue Style:
+Friendly and energetic
+
+Age:
+22
+
+Likes / Dislikes:
+Tea, conversations / Conflict
+
+Daily Routine:
+Supports reception desk
+
+Quest Functions:
+Visitor assistance
+
+Relationship with Other Staff:
+Best friends with Kelvin

@@ -1,0 +1,24 @@
+Name: Yuri
+
+Role: Guild Librarian
+
+Personality:
+Intelligent, observant, curious
+
+Dialogue Style:
+Thoughtful and informative
+
+Age:
+30
+
+Likes / Dislikes:
+Research, rare books / Noise
+
+Daily Routine:
+Maintains library
+
+Quest Functions:
+Knowledge support for quests
+
+Relationship with Other Staff:
+Collaborates with Darius

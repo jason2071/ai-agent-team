@@ -1,0 +1,24 @@
+Name: Serena
+
+Role: Risk Assessment Officer
+
+Personality:
+Reliable, logical, cautious
+
+Dialogue Style:
+Calm and professional
+
+Age:
+28
+
+Likes / Dislikes:
+Analysis, planning / Recklessness
+
+Daily Routine:
+Reviews missions
+
+Quest Functions:
+Mission risk evaluation
+
+Relationship with Other Staff:
+Trusted by Van and Finn

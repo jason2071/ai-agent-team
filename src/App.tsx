@@ -58,7 +58,7 @@ function loadAgents(): Agent[] {
   const fresh = AGENTS.filter((a) => !seen.includes(a.id) && !storedIds.has(a.id));
   const merged = fresh.length ? [...stored, ...fresh] : stored;
 
-  // เรียงตาม workflow order ของ default (Aria->Theo->Pixie->Vee->Gopher->Testy->Lint);
+  // เรียงตาม workflow order ของ default (Serena->Rex->Mia->Kelvin->Yuri->Eve->Darius);
   // agent ที่ user สร้างเอง (ไม่ใช่ default) ต่อท้าย คงลำดับเดิม
   const order = new Map(AGENTS.map((a, i) => [a.id, i]));
   return merged
@@ -373,7 +373,7 @@ export default function App() {
         onManage={() => setShowManage(true)}
       />
 
-      {/* chat drawer — เปิดทับ office ตอนคลิกตัวละคร */}
+      {/* chat drawer — เปิดทับกิลด์ตอนคลิกตัวละคร */}
       <div className={`chat-drawer ${chatOpen ? "open" : ""}`}>
       <main
         className="panel"
@@ -382,7 +382,7 @@ export default function App() {
         }}
       >
         <header className="panel-head" style={{ borderColor: `${active.accent}33` }}>
-          <button className="drawer-close" onClick={() => setChatOpen(false)} title="กลับไปออฟฟิศ">
+          <button className="drawer-close" onClick={() => setChatOpen(false)} title="กลับไปกิลด์">
             ←
           </button>
           <Avatar agent={active} size={36} />

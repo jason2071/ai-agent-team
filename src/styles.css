@@ -252,8 +252,8 @@ body {
 /* node-graph canvas */
 .modal.wide { width: 900px; }
 .pl-canvas {
-  height: 56vh;
-  min-height: 360px;
+  height: 48vh;
+  min-height: 320px;
   border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
@@ -287,6 +287,17 @@ body {
   cursor: pointer; font-size: 12px; line-height: 1;
 }
 .rf-an-x:hover { color: #c0392b; }
+
+/* footer ปุ่มบันทึก ติดล่าง modal เสมอ (กราฟสูง กันปุ่มตกขอบ) */
+.sticky-foot {
+  position: sticky;
+  bottom: 0;
+  background: #fff;
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  z-index: 2;
+}
 .pipeline-step.dragging { opacity: 0.4; }
 .pl-handle { cursor: grab; color: var(--muted); font-size: 14px; }
 .pl-idx {

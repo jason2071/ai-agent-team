@@ -374,7 +374,9 @@ export function graphToWorkflow(
         ? `งานก่อนหน้า:\n${ins.map((p) => c.results[`n${p}`]).filter(Boolean).join("\n---\n")}\n\n`
         : "";
 
-    if (n.review) {
+    // gate = agent ที่เป็น reviewer (role มี "review") — ไม่ต้องติ๊กเอง
+    const isGate = /review/i.test(ag.role);
+    if (isGate) {
       if (ins.length !== 1) throw new Error(`review "${ag.name}" ต้องมีเส้นเข้า 1 เส้น (ตรวจงานชิ้นเดียว)`);
       const authorId = `n${ins[0]}`;
       wf[`n${n.id}`] = {

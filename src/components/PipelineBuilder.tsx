@@ -41,21 +41,16 @@ interface AgentData {
 function AgentNode({ id, data }: NodeProps) {
   const rf = useReactFlow();
   const d = data as AgentData;
+  const isGate = /review/i.test(d.role); // reviewer = gate อัตโนมัติ
   return (
-    <div className={`rf-agent-node ${d.review ? "review" : ""}`} style={{ borderColor: d.accent }}>
+    <div className={`rf-agent-node ${isGate ? "review" : ""}`} style={{ borderColor: d.accent }}>
       <Handle type="target" position={Position.Left} />
-      <div className="rf-an-name" style={{ color: d.accent }}>{d.name}</div>
-      <div className="rf-an-role">{d.review ? "review gate" : d.role}</div>
+      <div className="rf-an-name" style={{ color: d.accent }}>
+        {isGate ? "🛡 " : ""}{d.name}
+      </div>
+      <div className="rf-an-role">{isGate ? `${d.role} · gate` : d.role}</div>
       <div className="rf-an-actions">
-        <label className="chk">
-          <input
-            type="checkbox"
-            checked={!!d.review}
-            onChange={(e) => rf.updateNodeData(id, { review: e.target.checked })}
-          />
-          review
-        </label>
-        <button className="rf-an-x" onClick={() => rf.deleteElements({ nodes: [{ id }] })}>✕</button>
+        <button className="rf-an-x" onClick={() => rf.deleteElements({ nodes: [{ id }] })}>✕ ลบ</button>
       </div>
       <Handle type="source" position={Position.Right} />
     </div>
@@ -94,8 +89,8 @@ export function PipelineBuilder({
   };
   const summary = (p: PipelinePreset) => {
     if (p.graph) {
-      const rev = p.graph.nodes.some((n) => n.review);
-      return `${p.graph.nodes.length} node · ${p.graph.edges.length} เส้น${rev ? " · มี review" : ""}`;
+      const rev = p.graph.nodes.some((n) => /review/i.test(label(n.agent).role));
+      return `${p.graph.nodes.length} node · ${p.graph.edges.length} เส้น${rev ? " · มี gate" : ""}`;
     }
     return (p.steps ?? [])
       .map((s) => (s.gate ? `[review ${label(s.agent).name}]` : s.par ? `∥ ${label(s.agent).name}` : label(s.agent).name))
@@ -342,7 +337,7 @@ function EditorInner({
         ))}
       </div>
       <div className="muted small">
-        คลิกปุ่ม agent = เพิ่ม node · ลากจากจุดขวาของ node ไปจุดซ้ายอีก node = ต่อเส้น (แตก 2 เส้น = ขนาน) · ติ๊ก <b>review</b> = ตรวจงานตัวก่อนหน้า (ไม่ผ่าน→ตีกลับ ≤3) · ลบ: คลิก node แล้วกด Backspace
+        คลิกปุ่ม agent = เพิ่ม node · ลากจากจุดขวาของ node ไปจุดซ้ายอีก node = ต่อเส้น (แตก 2 เส้น = ขนาน) · เอา <b>🛡 Darius (reviewer)</b> มาคั่น = gate ตรวจงานตัวก่อนหน้า (ไม่ผ่าน→ตีกลับ ≤3) · ลบ: คลิก node แล้วกด Backspace
       </div>
 
       <div className="pl-canvas" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
@@ -363,9 +358,9 @@ function EditorInner({
 
       {error && <div className="pl-error">⚠ {error}</div>}
 
-      <div className="form-foot">
+      <div className="form-foot sticky-foot">
         <button className="mini" onClick={onCancel}>ยกเลิก</button>
-        <button className="mini primary" onClick={save} disabled={!valid}>บันทึก</button>
+        <button className="mini primary" onClick={save} disabled={!valid}>💾 บันทึก</button>
       </div>
     </div>
   );

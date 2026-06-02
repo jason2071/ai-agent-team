@@ -186,7 +186,7 @@ export function PipelineBuilder({
           </div>
         ) : (
           <>
-            <div className="agent-list">
+            <div className="agent-list scroll">
               {pipelines.length === 0 && (
                 <div className="muted small">ยังไม่มี pipeline — กด "+ สร้าง" เพื่อวาดกราฟ agent</div>
               )}
@@ -293,6 +293,12 @@ function EditorInner({
   const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges);
   const [error, setError] = useState<string | null>(null);
+  const [palQ, setPalQ] = useState("");
+
+  const pq = palQ.trim().toLowerCase();
+  const palAgents = pq
+    ? agents.filter((a) => a.name.toLowerCase().includes(pq) || a.role.toLowerCase().includes(pq))
+    : agents;
   const rf = useReactFlow();
   const nodeTypes = useMemo(() => ({ agent: AgentNode }), []);
 
@@ -360,21 +366,35 @@ function EditorInner({
         <input value={name} onChange={(e) => setName(e.target.value)} />
       </label>
 
-      <div className="frow tools">
-        <span>คลิกเพิ่ม agent:</span>
-        {agents.map((a) => (
-          <button
-            key={a.id}
-            className="handoff-btn"
-            draggable
-            style={{ borderColor: `${a.accent}66`, color: a.accent }}
-            onClick={() => addNodeCascade(a.id)}
-            onDragStart={(e) => e.dataTransfer.setData("application/agent", a.id)}
-            title={`คลิก/ลาก ${a.name} (${a.role}) ลง canvas`}
-          >
-            + {a.name}
-          </button>
-        ))}
+      <div className="pl-palette">
+        <div className="pl-palette-head">
+          <span>คลิกเพิ่ม agent:</span>
+          {agents.length > 8 && (
+            <input
+              className="pl-pal-search"
+              placeholder="ค้นหา agent…"
+              value={palQ}
+              onChange={(e) => setPalQ(e.target.value)}
+            />
+          )}
+          <span className="muted small">{palAgents.length}/{agents.length}</span>
+        </div>
+        <div className="pl-palette-chips">
+          {palAgents.map((a) => (
+            <button
+              key={a.id}
+              className="handoff-btn"
+              draggable
+              style={{ borderColor: `${a.accent}66`, color: a.accent }}
+              onClick={() => addNodeCascade(a.id)}
+              onDragStart={(e) => e.dataTransfer.setData("application/agent", a.id)}
+              title={`คลิก/ลาก ${a.name} (${a.role}) ลง canvas`}
+            >
+              + {a.name}
+            </button>
+          ))}
+          {palAgents.length === 0 && <span className="muted small">ไม่พบ agent</span>}
+        </div>
       </div>
       <div className="muted small">
         คลิกปุ่ม agent = เพิ่ม node · ลากจากจุดขวาของ node ไปจุดซ้ายอีก node = ต่อเส้น (แตก 2 เส้น = ขนาน) · เอา <b>🛡 reviewer/tester (Darius, Eve)</b> มาคั่น = gate ตรวจ/เทสงานตัวก่อนหน้า (ไม่ผ่าน→ตีกลับ ≤3) · ลบ: คลิก node แล้วกด Backspace

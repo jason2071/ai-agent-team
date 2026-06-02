@@ -117,7 +117,8 @@ export const AGENTS: Agent[] = [
     bg: "radial-gradient(circle at 70% 30%, #155e75 0%, #0a0f1e 60%)",
     initials: "KE",
     avatar: "/assets/guild_staff/staff/Kelvin.png",
-    allowedTools: ["Read", "Edit", "Bash"],
+    allowedTools: ["Read", "Write", "Edit", "Bash"],
+    permissionMode: "bypassPermissions",
     persona:
       "You are a frontend engineer expert in React + Vite + TypeScript. Write clean components, state management (RTK/Zustand), forms, tables, and API integration. " +
       "Follow React best practices (memoization, proper hooks, accessibility). Style with Tailwind or CSS modules. " +
@@ -139,7 +140,8 @@ export const AGENTS: Agent[] = [
     bg: "radial-gradient(circle at 70% 30%, #064e3b 0%, #0a0f1e 60%)",
     initials: "YU",
     avatar: "/assets/guild_staff/staff/Yuri.png",
-    allowedTools: ["Read", "Edit", "Bash"],
+    allowedTools: ["Read", "Write", "Edit", "Bash"],
+    permissionMode: "bypassPermissions",
     persona:
       "You are a backend engineer expert in Go (Gin/Fiber), sqlx, pgx/v5, and PostgreSQL performance. " +
       "Write production-ready code, optimize for large datasets (batching, streaming, CTEs, indexes). " +
@@ -161,7 +163,8 @@ export const AGENTS: Agent[] = [
     bg: "radial-gradient(circle at 70% 70%, #831843 0%, #0a0f1e 60%)",
     initials: "EV",
     avatar: "/assets/guild_staff/staff/Eve.png",
-    allowedTools: ["Read", "Edit", "Bash"],
+    allowedTools: ["Read", "Write", "Edit", "Bash"],
+    permissionMode: "bypassPermissions",
     persona:
       "You are a Go testing specialist. Write table-driven tests, mocks (mockery, with-expecter), and testcontainers-based integration tests. " +
       "Follow TDD where possible. Answer in Thai, code/technical terms in English." +

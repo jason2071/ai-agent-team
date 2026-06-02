@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Agent } from "../agents";
 
 interface Message {
@@ -35,6 +36,11 @@ export function OfficeView({
 }) {
   const isBusy = (id: string) => !!busy[id];
   const runningCount = agents.filter((a) => isBusy(a.id)).length;
+  // พับ panel เก็บได้ — กันบังตัวละคร
+  const [collapsed, setCollapsed] = useState<{ left: boolean; right: boolean }>({
+    left: false,
+    right: false,
+  });
 
   // activity feed: ข้อความ assistant ล่าสุดข้ามทุก agent
   const feed: { name: string; accent: string; text: string }[] = [];
@@ -82,29 +88,40 @@ export function OfficeView({
       </div>
 
       {/* panel: สถานะกิลด์ */}
-      <div className="office-panel left">
-        <div className="op-head">สมาชิกกิลด์ · {runningCount}/{agents.length} active</div>
-        {agents.map((a) => (
-          <div key={a.id} className="op-row" onClick={() => onSelect(a.id)}>
-            <span className="dot-accent" style={{ background: a.accent }} />
-            <span className="op-name">{a.name}</span>
-            <span className={`op-stat ${isBusy(a.id) ? "run" : ""}`}>
-              {isBusy(a.id) ? "RUNNING" : "IDLE"}
-            </span>
-          </div>
-        ))}
+      <div className={`office-panel left ${collapsed.left ? "collapsed" : ""}`}>
+        <button className="op-head" onClick={() => setCollapsed((c) => ({ ...c, left: !c.left }))}>
+          <span>สมาชิกกิลด์ · {runningCount}/{agents.length} active</span>
+          <span className="op-caret">{collapsed.left ? "▸" : "▾"}</span>
+        </button>
+        {!collapsed.left &&
+          agents.map((a) => (
+            <div key={a.id} className="op-row" onClick={() => onSelect(a.id)}>
+              <span className="dot-accent" style={{ background: a.accent }} />
+              <span className="op-name">{a.name}</span>
+              <span className={`op-stat ${isBusy(a.id) ? "run" : ""}`}>
+                {isBusy(a.id) ? "RUNNING" : "IDLE"}
+              </span>
+            </div>
+          ))}
       </div>
 
       {/* panel: activity feed */}
-      <div className="office-panel right">
-        <div className="op-head">GUILD ACTIVITY</div>
-        {feed.length === 0 && <div className="op-empty">ยังไม่มีเควสต์ — คลิกนักผจญภัยเริ่มสั่งงาน</div>}
-        {feed.slice(0, 7).map((f, i) => (
-          <div key={i} className="feed-item">
-            <b style={{ color: f.accent }}>{f.name}</b>
-            <span>{f.text}</span>
-          </div>
-        ))}
+      <div className={`office-panel right ${collapsed.right ? "collapsed" : ""}`}>
+        <button className="op-head" onClick={() => setCollapsed((c) => ({ ...c, right: !c.right }))}>
+          <span>GUILD ACTIVITY</span>
+          <span className="op-caret">{collapsed.right ? "▸" : "▾"}</span>
+        </button>
+        {!collapsed.right && (
+          <>
+            {feed.length === 0 && <div className="op-empty">ยังไม่มีเควสต์ — คลิกนักผจญภัยเริ่มสั่งงาน</div>}
+            {feed.slice(0, 7).map((f, i) => (
+              <div key={i} className="feed-item">
+                <b style={{ color: f.accent }}>{f.name}</b>
+                <span>{f.text}</span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </div>
   );

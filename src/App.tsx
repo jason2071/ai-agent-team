@@ -132,6 +132,8 @@ export default function App() {
   const [input, setInput] = useState("");
   // busy แยกต่อ agent -> รันหลายตัวพร้อมกันได้ (fan-out)
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  // tool ล่าสุดที่ agent ใช้ (transient) — โชว์สดข้าง thinking ไม่เก็บเป็น message ถาวร
+  const [toolStatus, setToolStatus] = useState<Record<string, string>>({});
   // target ที่เลือกไว้ส่งต่อ (multi-select)
   const [handoffSel, setHandoffSel] = useState<string[]>([]);
   // sequential handoff: ส่งต่อแบบลำดับ (รอเสร็จทีละตัว) แทน parallel
@@ -260,10 +262,8 @@ export default function App() {
       return;
     }
     if (ev.kind === "system") {
-      setChats((c) => ({
-        ...c,
-        [ev.agent_id]: [...(c[ev.agent_id] ?? []), { role: "system", text: ev.text }],
-      }));
+      // tool progress (🔧 ...) -> โชว์สดบรรทัดเดียว ไม่ดันบทสนทนา (clear ตอน done/error)
+      setToolStatus((t) => ({ ...t, [ev.agent_id]: ev.text }));
       return;
     }
     if (ev.kind === "usage") {
@@ -276,6 +276,7 @@ export default function App() {
     }
     if (ev.kind === "done") {
       setBusy((b) => ({ ...b, [ev.agent_id]: false }));
+      setToolStatus((t) => { const n = { ...t }; delete n[ev.agent_id]; return n; });
       notifyDone(ev.agent_id, true);
       advanceChain(ev.agent_id, true);
       return;
@@ -283,6 +284,7 @@ export default function App() {
     if (ev.kind === "error") {
       setChats((c) => appendDelta(c, ev.agent_id, `\n[error] ${ev.message}`));
       setBusy((b) => ({ ...b, [ev.agent_id]: false }));
+      setToolStatus((t) => { const n = { ...t }; delete n[ev.agent_id]; return n; });
       notifyDone(ev.agent_id, false);
       advanceChain(ev.agent_id, false);
     }
@@ -642,6 +644,7 @@ export default function App() {
             <div className="msg assistant">
               <div className="bubble thinking" style={{ borderColor: `${active.accent}55` }}>
                 <span className="dot" /> <span className="dot" /> <span className="dot" />
+                {toolStatus[activeId] && <span className="tool-live">{toolStatus[activeId]}</span>}
               </div>
             </div>
           )}

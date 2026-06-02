@@ -14,7 +14,7 @@ const PERMS = [
   { v: "acceptEdits", label: "acceptEdits (แก้ไฟล์อัตโนมัติ)" },
   { v: "bypassPermissions", label: "bypass (ทำได้ทุกอย่าง)" },
 ];
-const TOOLS = ["Read", "Edit", "Bash"];
+const TOOLS = ["Read", "Write", "Edit", "Bash"];
 
 function blank(): Agent {
   return {

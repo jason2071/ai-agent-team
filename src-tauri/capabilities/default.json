@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "permissions ที่ webview ใช้ได้ (custom command run_agent/read_file_text ไม่ต้องอยู่ในนี้)",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:default"
+  ]
+}

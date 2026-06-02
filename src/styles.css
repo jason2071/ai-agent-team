@@ -248,6 +248,45 @@ body {
 .pipeline-step.gate { border-color: #fbbf24; background: #fffbeb; }
 .pipeline-step.par { border-color: #34d399; background: #ecfdf5; }
 .par-tag { color: #059669; font-weight: 700; margin-right: 4px; }
+
+/* node-graph canvas */
+.modal.wide { width: 900px; }
+.pl-canvas {
+  height: 56vh;
+  min-height: 360px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.pl-error {
+  margin-top: 8px;
+  color: #c0392b;
+  font-size: 12px;
+  background: rgba(192,57,43,0.08);
+  border: 1px solid #e3b4ae;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.rf-agent-node {
+  background: #fff;
+  border: 2px solid;
+  border-radius: 10px;
+  padding: 8px 12px;
+  min-width: 140px;
+  box-shadow: 0 2px 6px rgba(20,26,44,0.12);
+  font-family: "Space Mono", monospace;
+}
+.rf-agent-node.review { border-color: #fbbf24 !important; background: #fffbeb; }
+.rf-an-name { font-weight: 700; font-size: 13px; }
+.rf-an-role { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+.rf-an-actions { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.rf-an-actions .chk { font-size: 10px; }
+.rf-an-x {
+  background: transparent; border: none; color: var(--muted);
+  cursor: pointer; font-size: 12px; line-height: 1;
+}
+.rf-an-x:hover { color: #c0392b; }
 .pipeline-step.dragging { opacity: 0.4; }
 .pl-handle { cursor: grab; color: var(--muted); font-size: 14px; }
 .pl-idx {

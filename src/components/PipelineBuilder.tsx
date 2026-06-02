@@ -1,16 +1,68 @@
-import { useRef, useState } from "react";
+import { useMemo, useState } from "react";
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  Background,
+  Controls,
+  Handle,
+  Position,
+  addEdge,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  MarkerType,
+  type Node,
+  type Edge,
+  type Connection,
+  type NodeProps,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import type { Agent } from "../agents";
-import type { PipelinePreset, PipelineStep } from "../workflow";
+import {
+  graphToWorkflow,
+  type PipelinePreset,
+  type PipelineGraph,
+} from "../workflow";
 
-function uid() {
-  return `pl-${Math.random().toString(36).slice(2, 8)}`;
+function uid(p = "pl") {
+  return `${p}-${Math.random().toString(36).slice(2, 8)}`;
 }
-function move<T>(arr: T[], from: number, to: number): T[] {
-  const a = [...arr];
-  const [x] = a.splice(from, 1);
-  a.splice(to, 0, x);
-  return a;
+
+// ===== custom node =====
+interface AgentData {
+  agent: string;
+  review?: boolean;
+  name: string;
+  role: string;
+  accent: string;
+  [k: string]: unknown;
 }
+
+function AgentNode({ id, data }: NodeProps) {
+  const rf = useReactFlow();
+  const d = data as AgentData;
+  return (
+    <div className={`rf-agent-node ${d.review ? "review" : ""}`} style={{ borderColor: d.accent }}>
+      <Handle type="target" position={Position.Left} />
+      <div className="rf-an-name" style={{ color: d.accent }}>{d.name}</div>
+      <div className="rf-an-role">{d.review ? "review gate" : d.role}</div>
+      <div className="rf-an-actions">
+        <label className="chk">
+          <input
+            type="checkbox"
+            checked={!!d.review}
+            onChange={(e) => rf.updateNodeData(id, { review: e.target.checked })}
+          />
+          review
+        </label>
+        <button className="rf-an-x" onClick={() => rf.deleteElements({ nodes: [{ id }] })}>✕</button>
+      </div>
+      <Handle type="source" position={Position.Right} />
+    </div>
+  );
+}
+
+const EDGE_OPTS = { markerEnd: { type: MarkerType.ArrowClosed }, style: { strokeWidth: 2 } };
 
 export function PipelineBuilder({
   agents,
@@ -36,12 +88,19 @@ export function PipelineBuilder({
   const [task, setTask] = useState("");
   const [docs, setDocs] = useState<string[]>([]);
 
-  const nameOf = (id: string) => agents.find((a) => a.id === id)?.name ?? id;
-  const roleOf = (id: string) => agents.find((a) => a.id === id)?.role ?? "";
-  const summary = (steps: PipelineStep[]) =>
-    steps
-      .map((s) => (s.gate ? `[review ${nameOf(s.agent)}]` : s.par ? `∥ ${nameOf(s.agent)}` : nameOf(s.agent)))
+  const label = (id: string) => {
+    const a = agents.find((x) => x.id === id);
+    return { name: a?.name ?? id, role: a?.role ?? "" };
+  };
+  const summary = (p: PipelinePreset) => {
+    if (p.graph) {
+      const rev = p.graph.nodes.some((n) => n.review);
+      return `${p.graph.nodes.length} node · ${p.graph.edges.length} เส้น${rev ? " · มี review" : ""}`;
+    }
+    return (p.steps ?? [])
+      .map((s) => (s.gate ? `[review ${label(s.agent).name}]` : s.par ? `∥ ${label(s.agent).name}` : label(s.agent).name))
       .join(" → ") || "(ว่าง)";
+  };
 
   function upsert(p: PipelinePreset) {
     const exists = pipelines.some((x) => x.id === p.id);
@@ -54,7 +113,7 @@ export function PipelineBuilder({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className={`modal ${draft ? "wide" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h2>Pipeline Builder</h2>
           <button className="modal-x" onClick={onClose}>✕</button>
@@ -64,17 +123,14 @@ export function PipelineBuilder({
           <PipelineEditor
             draft={draft}
             agents={agents}
-            nameOf={nameOf}
-            roleOf={roleOf}
-            onChange={setDraft}
-            onSubmit={() => upsert(draft)}
+            label={label}
+            onSubmit={upsert}
             onCancel={() => setDraft(null)}
           />
         ) : runTarget ? (
           <div className="agent-form">
-            <div className="pl-summary">▶ {runTarget.name}: {summary(runTarget.steps)}</div>
+            <div className="pl-summary">▶ {runTarget.name}: {summary(runTarget)}</div>
 
-            {/* root project (cwd) — agent ทุกตัวทำงาน + อ่านไฟล์ใน folder นี้ */}
             <div className="frow tools">
               <span>Root project:</span>
               <button className="tool-btn" onClick={onPickProject}>
@@ -85,13 +141,11 @@ export function PipelineBuilder({
               <div className="muted small">⚠ ต้องตั้ง root project ก่อน — agent ถึงจะอ่าน/เขียนไฟล์ใน repo ได้</div>
             )}
 
-            {/* แนบ docs -> เขียนลง {project}/docs/ */}
             <div className="frow tools">
               <span>เอกสาร:</span>
               <button
                 className="tool-btn ghost"
                 disabled={!projectDir}
-                title={projectDir ? "แนบไฟล์ → เขียนลง docs/" : "ตั้ง project ก่อน"}
                 onClick={async () => {
                   const added = await onAttachDocs();
                   if (added.length) setDocs((d) => [...new Set([...d, ...added])]);
@@ -99,9 +153,7 @@ export function PipelineBuilder({
               >
                 📎 แนบ docs → docs/
               </button>
-              {docs.map((d) => (
-                <span key={d} className="chip" title={d}>{d}</span>
-              ))}
+              {docs.map((d) => <span key={d} className="chip" title={d}>{d}</span>)}
             </div>
 
             <label className="full">
@@ -133,17 +185,17 @@ export function PipelineBuilder({
           <>
             <div className="agent-list">
               {pipelines.length === 0 && (
-                <div className="muted small">ยังไม่มี pipeline — กด "+ สร้าง" เพื่อเรียงลำดับ agent เอง</div>
+                <div className="muted small">ยังไม่มี pipeline — กด "+ สร้าง" เพื่อวาดกราฟ agent</div>
               )}
               {pipelines.map((p) => (
                 <div key={p.id} className="agent-row">
                   <div className="agent-row-meta" style={{ minWidth: 90 }}>
                     <b>{p.name}</b>
-                    <span className="muted small">{p.steps.length} ขั้น</span>
+                    <span className="muted small">{p.graph ? "graph" : "list"}</span>
                   </div>
-                  <span className="muted small pl-row-sum">{summary(p.steps)}</span>
-                  <button className="mini" onClick={() => { setRunTarget(p); setTask(""); }}>▶ รัน</button>
-                  <button className="mini" onClick={() => setDraft({ ...p, steps: [...p.steps] })}>แก้</button>
+                  <span className="muted small pl-row-sum">{summary(p)}</span>
+                  <button className="mini" onClick={() => { setRunTarget(p); setTask(""); setDocs([]); }}>▶ รัน</button>
+                  <button className="mini" onClick={() => setDraft({ ...p, graph: p.graph ?? { nodes: [], edges: [] } })}>แก้</button>
                   <button className="mini danger" onClick={() => remove(p.id)}>ลบ</button>
                 </div>
               ))}
@@ -151,7 +203,7 @@ export function PipelineBuilder({
             <div className="modal-foot">
               <button
                 className="mini primary"
-                onClick={() => setDraft({ id: uid(), name: "", steps: [] })}
+                onClick={() => setDraft({ id: uid(), name: "", graph: { nodes: [], edges: [] } })}
               >
                 + สร้าง pipeline
               </button>
@@ -163,128 +215,138 @@ export function PipelineBuilder({
   );
 }
 
-function PipelineEditor({
+// ===== graph editor (react-flow) =====
+function PipelineEditor(props: {
+  draft: PipelinePreset;
+  agents: Agent[];
+  label: (id: string) => { name: string; role: string };
+  onSubmit: (p: PipelinePreset) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <ReactFlowProvider>
+      <EditorInner {...props} />
+    </ReactFlowProvider>
+  );
+}
+
+function EditorInner({
   draft,
   agents,
-  nameOf,
-  roleOf,
-  onChange,
+  label,
   onSubmit,
   onCancel,
 }: {
   draft: PipelinePreset;
   agents: Agent[];
-  nameOf: (id: string) => string;
-  roleOf: (id: string) => string;
-  onChange: (p: PipelinePreset) => void;
-  onSubmit: () => void;
+  label: (id: string) => { name: string; role: string };
+  onSubmit: (p: PipelinePreset) => void;
   onCancel: () => void;
 }) {
-  const [dragIdx, setDragIdx] = useState<number | null>(null); // visual เท่านั้น
-  const dragIdxRef = useRef<number | null>(null);              // logic (ไม่พึ่ง render timing)
-  const set = (steps: PipelineStep[]) => onChange({ ...draft, steps });
+  const accentOf = (id: string) => agents.find((a) => a.id === id)?.accent ?? "#94a3b8";
+  const toRfNode = (g: { id: string; agent: string; review?: boolean; x: number; y: number }): Node => ({
+    id: g.id,
+    type: "agent",
+    position: { x: g.x, y: g.y },
+    data: { agent: g.agent, review: g.review, name: label(g.agent).name, role: label(g.agent).role, accent: accentOf(g.agent) },
+  });
 
-  const addStep = (agent: string) => set([...draft.steps, { agent }]);
-  const removeStep = (i: number) => set(draft.steps.filter((_, j) => j !== i));
-  const toggleGate = (i: number) =>
-    set(draft.steps.map((s, j) => (j === i ? { agent: s.agent, gate: !s.gate } : s))); // gate ↔ ล้าง par
-  const togglePar = (i: number) =>
-    set(draft.steps.map((s, j) => (j === i ? { agent: s.agent, par: !s.par } : s))); // par ↔ ล้าง gate
+  const initNodes: Node[] = (draft.graph?.nodes ?? []).map(toRfNode);
+  const initEdges: Edge[] = (draft.graph?.edges ?? []).map((e) => ({ id: e.id, source: e.source, target: e.target, ...EDGE_OPTS }));
 
-  function onDrop(to: number) {
-    const from = dragIdxRef.current;
-    if (from === null || from === to) return;
-    set(move(draft.steps, from, to));
-    dragIdxRef.current = null;
-    setDragIdx(null);
+  const [name, setName] = useState(draft.name);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initEdges);
+  const [error, setError] = useState<string | null>(null);
+  const rf = useReactFlow();
+  const nodeTypes = useMemo(() => ({ agent: AgentNode }), []);
+
+  function onConnect(c: Connection) {
+    setEdges((es) => addEdge({ ...c, ...EDGE_OPTS }, es));
+  }
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const agent = e.dataTransfer.getData("application/agent");
+    if (!agent) return;
+    const pos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    const a = agents.find((x) => x.id === agent);
+    setNodes((ns) => [
+      ...ns,
+      {
+        id: uid("g"),
+        type: "agent",
+        position: pos,
+        data: { agent, review: false, name: a?.name ?? agent, role: a?.role ?? "", accent: a?.accent ?? "#94a3b8" },
+      },
+    ]);
   }
 
-  // valid: มีชื่อ + ≥1 ขั้น + step แรกไม่ใช่ gate/par + gate ไม่ติด gate/par + par ไม่ตามหลัง gate
-  const badGate = draft.steps.some((s, i) => s.gate && (i === 0 || draft.steps[i - 1]?.gate || draft.steps[i - 1]?.par));
-  const badPar = draft.steps.some((s, i) => s.par && (i === 0 || draft.steps[i - 1]?.gate));
-  const valid = !!draft.name.trim() && draft.steps.length > 0 && !badGate && !badPar;
+  function save() {
+    const graph: PipelineGraph = {
+      nodes: nodes.map((n) => {
+        const d = n.data as AgentData;
+        return { id: n.id, agent: d.agent, review: !!d.review, x: Math.round(n.position.x), y: Math.round(n.position.y) };
+      }),
+      edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
+    };
+    try {
+      graphToWorkflow(name || "pipeline", graph, label); // validate
+    } catch (err) {
+      setError(String(err instanceof Error ? err.message : err));
+      return;
+    }
+    onSubmit({ id: draft.id, name: name || "pipeline", graph });
+  }
+
+  const valid = !!name.trim() && nodes.length > 0;
 
   return (
     <div className="agent-form">
       <label className="full">
         ชื่อ pipeline
-        <input value={draft.name} onChange={(e) => onChange({ ...draft, name: e.target.value })} />
+        <input value={name} onChange={(e) => setName(e.target.value)} />
       </label>
 
       <div className="frow tools">
-        <span>เพิ่ม agent:</span>
+        <span>ลาก agent ลง canvas:</span>
         {agents.map((a) => (
           <button
             key={a.id}
             className="handoff-btn"
+            draggable
             style={{ borderColor: `${a.accent}66`, color: a.accent }}
-            onClick={() => addStep(a.id)}
-            title={`เพิ่ม ${a.name} (${a.role})`}
+            onDragStart={(e) => e.dataTransfer.setData("application/agent", a.id)}
+            title={`ลาก ${a.name} (${a.role}) ลง canvas`}
           >
-            + {a.name}
+            ⠿ {a.name}
           </button>
         ))}
       </div>
-
       <div className="muted small">
-        <b>review</b> = step นั้นตรวจงาน step ก่อนหน้า (ผ่าน→ไปต่อ, ไม่ผ่าน→ตีกลับ ≤3) ·{" "}
-        <b>‖ พร้อมกัน</b> = รันคู่กับ step ก่อนหน้า (เช่น API ∥ Web). ห้าม review ติด gate/parallel.
+        ต่อเส้นจากขวา→ซ้ายของ node เพื่อกำหนดลำดับ · แตก 2 เส้น = ทำขนาน · node ที่ติ๊ก <b>review</b> = ตรวจงานตัวก่อนหน้า (ไม่ผ่าน→ตีกลับ ≤3) · ลบ: เลือกแล้วกด Backspace
       </div>
-      <div className="pl-steps">
-        {draft.steps.length === 0 && (
-          <div className="muted small">คลิก agent ด้านบนเพื่อเพิ่มขั้น แล้วลาก ⠿ เรียงลำดับ</div>
-        )}
-        {draft.steps.map((s, i) => {
-          const prevGate = i > 0 && !!draft.steps[i - 1]?.gate;
-          const prevPar = i > 0 && !!draft.steps[i - 1]?.par;
-          // ล็อกเฉพาะตอน "จะติ๊กเพิ่ม" — ยอมให้ uncheck ของเดิมได้เสมอ (แก้ที่ตั้งผิด)
-          const lockReview = (i === 0 || prevGate || prevPar) && !s.gate; // gate ตรวจ task เดี่ยว
-          const lockPar = (i === 0 || prevGate) && !s.par;                // par คู่ task ก่อนหน้า
-          return (
-            <div
-              key={i}
-              className={`pipeline-step ${dragIdx === i ? "dragging" : ""} ${s.gate ? "gate" : ""} ${s.par ? "par" : ""}`}
-              draggable
-              onDragStart={(e) => {
-                dragIdxRef.current = i;
-                setDragIdx(i);
-                e.dataTransfer.effectAllowed = "move";
-                e.dataTransfer.setData("text/plain", String(i)); // WebKit ต้องมี ถึงเริ่ม drag
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                onDrop(i);
-              }}
-              onDragEnd={() => { dragIdxRef.current = null; setDragIdx(null); }}
-            >
-              <span className="pl-handle" title="ลากเรียง">⠿</span>
-              <span className="pl-idx">{i + 1}</span>
-              <span className="pl-name">
-                {s.par && <span className="par-tag">‖</span>}
-                {nameOf(s.agent)}
-                <span className="muted small"> · {s.gate ? "review gate" : s.par ? "พร้อมกัน · " + roleOf(s.agent) : roleOf(s.agent)}</span>
-              </span>
-              <label className="chk" title="รันพร้อมกับ step ก่อนหน้า (parallel)">
-                <input type="checkbox" checked={!!s.par} disabled={lockPar} onChange={() => togglePar(i)} />
-                ‖
-              </label>
-              <label className="chk" title="ให้ step นี้ตรวจงาน step ก่อนหน้า">
-                <input type="checkbox" checked={!!s.gate} disabled={lockReview} onChange={() => toggleGate(i)} />
-                review
-              </label>
-              <button className="mini danger" onClick={() => removeStep(i)}>ลบ</button>
-            </div>
-          );
-        })}
+
+      <div className="pl-canvas" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          nodeTypes={nodeTypes}
+          fitView
+          deleteKeyCode={["Backspace", "Delete"]}
+        >
+          <Background />
+          <Controls />
+        </ReactFlow>
       </div>
+
+      {error && <div className="pl-error">⚠ {error}</div>}
 
       <div className="form-foot">
         <button className="mini" onClick={onCancel}>ยกเลิก</button>
-        <button className="mini primary" onClick={onSubmit} disabled={!valid}>บันทึก</button>
+        <button className="mini primary" onClick={save} disabled={!valid}>บันทึก</button>
       </div>
     </div>
   );

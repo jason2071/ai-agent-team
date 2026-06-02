@@ -182,10 +182,16 @@ export interface PipelineStep {
   gate?: boolean;    // true = review gate ของ task ก่อนหน้า
   par?: boolean;     // true = รันพร้อมกับ step ก่อนหน้า (parallel group)
 }
+// node-graph (react-flow) — เก็บใน preset เป็น graph
+export interface GraphNode { id: string; agent: string; review?: boolean; x: number; y: number }
+export interface GraphEdge { id: string; source: string; target: string }
+export interface PipelineGraph { nodes: GraphNode[]; edges: GraphEdge[] }
+
 export interface PipelinePreset {
   id: string;
   name: string;
-  steps: PipelineStep[];
+  steps?: PipelineStep[];   // legacy (list builder)
+  graph?: PipelineGraph;    // node-graph builder
 }
 
 type Seg =
@@ -312,4 +318,92 @@ export function buildWorkflow(
 
   nodes.done = { id: "done", kind: "done", title: "เสร็จ ✓" };
   return { id: `pl-${name}`, name, start: entry(segs[0]), nodes };
+}
+
+// แปลง node-graph -> Workflow:
+//   outDeg>1 = fork (ขนาน), inDeg>1 = join (รวม), review node = gate (onFail→author loop)
+export function graphToWorkflow(
+  name: string,
+  graph: PipelineGraph,
+  label: (agentId: string) => { name: string; role: string },
+): Workflow {
+  const { nodes, edges } = graph;
+  const done: WFNode = { id: "done", kind: "done", title: "เสร็จ ✓" };
+  if (nodes.length === 0) return { id: `pl-${name}`, name, start: "done", nodes: { done } };
+
+  const out: Record<string, string[]> = {};
+  const inFrom: Record<string, string[]> = {};
+  for (const n of nodes) { out[n.id] = []; inFrom[n.id] = []; }
+  for (const e of edges) {
+    if (out[e.source] && inFrom[e.target]) { out[e.source].push(e.target); inFrom[e.target].push(e.source); }
+  }
+
+  // ต้องมีจุดเริ่มเดียว (inDeg 0)
+  const starts = nodes.filter((n) => inFrom[n.id].length === 0);
+  if (starts.length !== 1) {
+    throw new Error(`ต้องมีจุดเริ่มเดียว (node ที่ไม่มีเส้นเข้า) — พบ ${starts.length}`);
+  }
+  // ห้าม cycle ที่ลากเอง (gate loop เป็น implicit)
+  const color: Record<string, number> = {};
+  let cyclic = false;
+  const dfs = (id: string) => {
+    color[id] = 1;
+    for (const t of out[id]) {
+      if (color[t] === 1) { cyclic = true; return; }
+      if (!color[t]) dfs(t);
+    }
+    color[id] = 2;
+  };
+  for (const n of nodes) if (!color[n.id]) dfs(n.id);
+  if (cyclic) throw new Error("กราฟมีวงวน (cycle) — ต่อเส้นย้อนกลับไม่ได้");
+
+  const entry = (id: string) => (inFrom[id].length > 1 ? `jn${id}` : `n${id}`);
+  const forward = (id: string) => {
+    const o = out[id];
+    if (o.length === 0) return "done";
+    if (o.length === 1) return entry(o[0]);
+    return `fk${id}`;
+  };
+
+  const wf: Record<string, WFNode> = {};
+  for (const n of nodes) {
+    const ag = label(n.agent);
+    const ins = inFrom[n.id];
+    const ctx = (c: WFCtx) =>
+      ins.length
+        ? `งานก่อนหน้า:\n${ins.map((p) => c.results[`n${p}`]).filter(Boolean).join("\n---\n")}\n\n`
+        : "";
+
+    if (n.review) {
+      if (ins.length !== 1) throw new Error(`review "${ag.name}" ต้องมีเส้นเข้า 1 เส้น (ตรวจงานชิ้นเดียว)`);
+      const authorId = `n${ins[0]}`;
+      wf[`n${n.id}`] = {
+        id: `n${n.id}`, kind: "gate", agent: n.agent, title: `${ag.name} · review`,
+        onPass: forward(n.id), onFail: authorId, maxRetry: 3,
+        build: (c) =>
+          `[Pipeline · review]\nโจทย์: ${c.task}\n\nงานที่ต้อง review:\n${c.results[authorId] ?? ""}\n\n` +
+          `review ตามบทบาทของคุณ — หา bug / ปัญหา / ความครบถ้วน.` + GATE_RULE,
+      };
+    } else {
+      wf[`n${n.id}`] = {
+        id: `n${n.id}`, kind: "task", agent: n.agent, title: `${ag.name} · ${ag.role}`,
+        next: forward(n.id),
+        build: (c) => `[Pipeline]\nโจทย์: ${c.task}\n\n` + ctx(c) + `ทำงานต่อตามบทบาทของคุณ ให้ใช้ได้จริง.`,
+      };
+    }
+    if (out[n.id].length > 1) {
+      wf[`fk${n.id}`] = {
+        id: `fk${n.id}`, kind: "fork", title: `แตกขนาน (${out[n.id].length})`,
+        branches: out[n.id].map(entry), join: "", // engine ใช้ branch.next ชี้ join เอง
+      };
+    }
+    if (inFrom[n.id].length > 1) {
+      wf[`jn${n.id}`] = {
+        id: `jn${n.id}`, kind: "join", title: "รวมเส้น",
+        expected: inFrom[n.id].length, next: `n${n.id}`,
+      };
+    }
+  }
+  wf.done = done;
+  return { id: `pl-${name}`, name, start: entry(starts[0].id), nodes: wf };
 }

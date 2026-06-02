@@ -14,6 +14,7 @@ import {
   FEATURE_WF,
   parseVerdict,
   buildWorkflow,
+  graphToWorkflow,
   type Workflow,
   type WFRun,
   type PipelinePreset,
@@ -429,7 +430,9 @@ export default function App() {
       const a = agents.find((x) => x.id === id);
       return { name: a?.name ?? id, role: a?.role ?? "" };
     };
-    const def = buildWorkflow(preset.name, preset.steps, label);
+    const def = preset.graph
+      ? graphToWorkflow(preset.name, preset.graph, label)
+      : buildWorkflow(preset.name, preset.steps ?? [], label);
     setShowPipeline(false);
     startWorkflow(def, task, projectDir ?? effectiveCwd(activeId));
   }

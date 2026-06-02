@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { invoke, Channel } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import ReactMarkdown from "react-markdown";
@@ -9,7 +9,10 @@ import { AGENTS, type Agent } from "./agents";
 import { Avatar } from "./components/Avatar";
 import { ManageAgents } from "./components/ManageAgents";
 import { OfficeView } from "./components/OfficeView";
-import { PipelineBuilder } from "./components/PipelineBuilder";
+// lazy: react-flow หนัก (~200KB) โหลดเฉพาะตอนเปิด Pipeline -> bundle แรกเล็กลง
+const PipelineBuilder = lazy(() =>
+  import("./components/PipelineBuilder").then((m) => ({ default: m.PipelineBuilder })),
+);
 import {
   FEATURE_WF,
   parseVerdict,
@@ -224,6 +227,25 @@ export default function App() {
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
+  }, []);
+
+  // ซ่อน splash หลัง mount + รอ bg (guild.png) โหลดเสร็จ กันขาวแวบ (fallback 2.5s)
+  useEffect(() => {
+    const el = document.getElementById("splash");
+    if (!el) return;
+    let done = false;
+    const hide = () => {
+      if (done) return;
+      done = true;
+      el.classList.add("hide");
+      setTimeout(() => el.remove(), 450);
+    };
+    const img = new Image();
+    img.onload = hide;
+    img.onerror = hide;
+    img.src = "/assets/guild.png";
+    const t = setTimeout(hide, 2500);
+    return () => clearTimeout(t);
   }, []);
 
   // active agent (ถ้าถูกลบ -> fallback ตัวแรก)
@@ -994,16 +1016,18 @@ export default function App() {
         />
       )}
       {showPipeline && (
-        <PipelineBuilder
-          agents={agents}
-          pipelines={pipelines}
-          projectDir={projectDir}
-          onSave={setPipelines}
-          onClose={() => setShowPipeline(false)}
-          onRun={runPipeline}
-          onPickProject={pickProject}
-          onAttachDocs={attachDocsToProject}
-        />
+        <Suspense fallback={<div className="modal-backdrop"><div className="modal">กำลังโหลด…</div></div>}>
+          <PipelineBuilder
+            agents={agents}
+            pipelines={pipelines}
+            projectDir={projectDir}
+            onSave={setPipelines}
+            onClose={() => setShowPipeline(false)}
+            onRun={runPipeline}
+            onPickProject={pickProject}
+            onAttachDocs={attachDocsToProject}
+          />
+        </Suspense>
       )}
     </div>
   );

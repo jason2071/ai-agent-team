@@ -269,11 +269,30 @@ pub fn run_agent(
                     }
                     let is_err = v.get("is_error").and_then(|b| b.as_bool()).unwrap_or(false);
                     if is_err {
-                        let msg = v
+                        // surface error จริง: result อาจไม่ใช่ string (error_max_turns /
+                        // error_during_execution / overload) -> ไล่ดู result -> subtype -> error -> dump
+                        let subtype = v.get("subtype").and_then(|s| s.as_str());
+                        let detail = v
                             .get("result")
                             .and_then(|r| r.as_str())
-                            .unwrap_or("claude error")
-                            .to_string();
+                            .or_else(|| v.get("error").and_then(|e| e.as_str()))
+                            .map(|s| s.to_string())
+                            .or_else(|| {
+                                // result เป็น object/null -> เอา subtype + stderr tail มาบอก
+                                let tail = stderr_buf
+                                    .lock()
+                                    .ok()
+                                    .map(|b| b.lines().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join(" | "))
+                                    .unwrap_or_default();
+                                let tail = tail.trim();
+                                if tail.is_empty() { None } else { Some(tail.to_string()) }
+                            });
+                        let msg = match (subtype, detail) {
+                            (Some(st), Some(d)) => format!("{st}: {d}"),
+                            (Some(st), None) => st.to_string(),
+                            (None, Some(d)) => d,
+                            (None, None) => "claude error (no detail)".to_string(),
+                        };
                         let _ = tx.send(StreamEvent::Error {
                             agent_id: agent_id.clone(),
                             message: msg,

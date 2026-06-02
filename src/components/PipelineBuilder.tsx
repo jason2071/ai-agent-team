@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Agent } from "../agents";
 import type { PipelinePreset, PipelineStep } from "../workflow";
 
@@ -39,7 +39,9 @@ export function PipelineBuilder({
   const nameOf = (id: string) => agents.find((a) => a.id === id)?.name ?? id;
   const roleOf = (id: string) => agents.find((a) => a.id === id)?.role ?? "";
   const summary = (steps: PipelineStep[]) =>
-    steps.map((s) => (s.gate ? `[review ${nameOf(s.agent)}]` : nameOf(s.agent))).join(" → ") || "(ว่าง)";
+    steps
+      .map((s) => (s.gate ? `[review ${nameOf(s.agent)}]` : s.par ? `∥ ${nameOf(s.agent)}` : nameOf(s.agent)))
+      .join(" → ") || "(ว่าง)";
 
   function upsert(p: PipelinePreset) {
     const exists = pipelines.some((x) => x.id === p.id);
@@ -178,23 +180,29 @@ function PipelineEditor({
   onSubmit: () => void;
   onCancel: () => void;
 }) {
-  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null); // visual เท่านั้น
+  const dragIdxRef = useRef<number | null>(null);              // logic (ไม่พึ่ง render timing)
   const set = (steps: PipelineStep[]) => onChange({ ...draft, steps });
 
   const addStep = (agent: string) => set([...draft.steps, { agent }]);
   const removeStep = (i: number) => set(draft.steps.filter((_, j) => j !== i));
   const toggleGate = (i: number) =>
-    set(draft.steps.map((s, j) => (j === i ? { ...s, gate: !s.gate } : s)));
+    set(draft.steps.map((s, j) => (j === i ? { agent: s.agent, gate: !s.gate } : s))); // gate ↔ ล้าง par
+  const togglePar = (i: number) =>
+    set(draft.steps.map((s, j) => (j === i ? { agent: s.agent, par: !s.par } : s))); // par ↔ ล้าง gate
 
   function onDrop(to: number) {
-    if (dragIdx === null || dragIdx === to) return;
-    set(move(draft.steps, dragIdx, to));
+    const from = dragIdxRef.current;
+    if (from === null || from === to) return;
+    set(move(draft.steps, from, to));
+    dragIdxRef.current = null;
     setDragIdx(null);
   }
 
-  // valid: มีชื่อ + อย่างน้อย 1 ขั้น + step แรกไม่ใช่ gate
-  const valid =
-    draft.name.trim() && draft.steps.length > 0 && !draft.steps[0]?.gate;
+  // valid: มีชื่อ + ≥1 ขั้น + step แรกไม่ใช่ gate/par + gate ไม่ติด gate/par + par ไม่ตามหลัง gate
+  const badGate = draft.steps.some((s, i) => s.gate && (i === 0 || draft.steps[i - 1]?.gate || draft.steps[i - 1]?.par));
+  const badPar = draft.steps.some((s, i) => s.par && (i === 0 || draft.steps[i - 1]?.gate));
+  const valid = !!draft.name.trim() && draft.steps.length > 0 && !badGate && !badPar;
 
   return (
     <div className="agent-form">
@@ -218,38 +226,60 @@ function PipelineEditor({
         ))}
       </div>
 
+      <div className="muted small">
+        <b>review</b> = step นั้นตรวจงาน step ก่อนหน้า (ผ่าน→ไปต่อ, ไม่ผ่าน→ตีกลับ ≤3) ·{" "}
+        <b>‖ พร้อมกัน</b> = รันคู่กับ step ก่อนหน้า (เช่น API ∥ Web). ห้าม review ติด gate/parallel.
+      </div>
       <div className="pl-steps">
         {draft.steps.length === 0 && (
-          <div className="muted small">คลิก agent ด้านบนเพื่อเพิ่มขั้น แล้วลากเรียงลำดับ</div>
+          <div className="muted small">คลิก agent ด้านบนเพื่อเพิ่มขั้น แล้วลาก ⠿ เรียงลำดับ</div>
         )}
-        {draft.steps.map((s, i) => (
-          <div
-            key={i}
-            className={`pipeline-step ${dragIdx === i ? "dragging" : ""} ${s.gate ? "gate" : ""}`}
-            draggable
-            onDragStart={() => setDragIdx(i)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => onDrop(i)}
-            onDragEnd={() => setDragIdx(null)}
-          >
-            <span className="pl-handle" title="ลากเรียง">⠿</span>
-            <span className="pl-idx">{i + 1}</span>
-            <span className="pl-name">
-              {nameOf(s.agent)}
-              <span className="muted small"> · {s.gate ? "review gate" : roleOf(s.agent)}</span>
-            </span>
-            <label className="chk" title={i === 0 ? "step แรกเป็น gate ไม่ได้" : "ให้ step นี้ review ขั้นก่อนหน้า"}>
-              <input
-                type="checkbox"
-                checked={!!s.gate}
-                disabled={i === 0}
-                onChange={() => toggleGate(i)}
-              />
-              review
-            </label>
-            <button className="mini danger" onClick={() => removeStep(i)}>ลบ</button>
-          </div>
-        ))}
+        {draft.steps.map((s, i) => {
+          const prevGate = i > 0 && !!draft.steps[i - 1]?.gate;
+          const prevPar = i > 0 && !!draft.steps[i - 1]?.par;
+          // ล็อกเฉพาะตอน "จะติ๊กเพิ่ม" — ยอมให้ uncheck ของเดิมได้เสมอ (แก้ที่ตั้งผิด)
+          const lockReview = (i === 0 || prevGate || prevPar) && !s.gate; // gate ตรวจ task เดี่ยว
+          const lockPar = (i === 0 || prevGate) && !s.par;                // par คู่ task ก่อนหน้า
+          return (
+            <div
+              key={i}
+              className={`pipeline-step ${dragIdx === i ? "dragging" : ""} ${s.gate ? "gate" : ""} ${s.par ? "par" : ""}`}
+              draggable
+              onDragStart={(e) => {
+                dragIdxRef.current = i;
+                setDragIdx(i);
+                e.dataTransfer.effectAllowed = "move";
+                e.dataTransfer.setData("text/plain", String(i)); // WebKit ต้องมี ถึงเริ่ม drag
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                onDrop(i);
+              }}
+              onDragEnd={() => { dragIdxRef.current = null; setDragIdx(null); }}
+            >
+              <span className="pl-handle" title="ลากเรียง">⠿</span>
+              <span className="pl-idx">{i + 1}</span>
+              <span className="pl-name">
+                {s.par && <span className="par-tag">‖</span>}
+                {nameOf(s.agent)}
+                <span className="muted small"> · {s.gate ? "review gate" : s.par ? "พร้อมกัน · " + roleOf(s.agent) : roleOf(s.agent)}</span>
+              </span>
+              <label className="chk" title="รันพร้อมกับ step ก่อนหน้า (parallel)">
+                <input type="checkbox" checked={!!s.par} disabled={lockPar} onChange={() => togglePar(i)} />
+                ‖
+              </label>
+              <label className="chk" title="ให้ step นี้ตรวจงาน step ก่อนหน้า">
+                <input type="checkbox" checked={!!s.gate} disabled={lockReview} onChange={() => toggleGate(i)} />
+                review
+              </label>
+              <button className="mini danger" onClick={() => removeStep(i)}>ลบ</button>
+            </div>
+          );
+        })}
       </div>
 
       <div className="form-foot">

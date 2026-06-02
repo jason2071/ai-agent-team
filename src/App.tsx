@@ -13,7 +13,7 @@ import { PipelineBuilder } from "./components/PipelineBuilder";
 import {
   FEATURE_WF,
   parseVerdict,
-  buildLinearWorkflow,
+  buildWorkflow,
   type Workflow,
   type WFRun,
   type PipelinePreset,
@@ -429,7 +429,7 @@ export default function App() {
       const a = agents.find((x) => x.id === id);
       return { name: a?.name ?? id, role: a?.role ?? "" };
     };
-    const def = buildLinearWorkflow(preset.name, preset.steps, label);
+    const def = buildWorkflow(preset.name, preset.steps, label);
     setShowPipeline(false);
     startWorkflow(def, task, projectDir ?? effectiveCwd(activeId));
   }

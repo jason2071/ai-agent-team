@@ -243,8 +243,11 @@ body {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #fff;
+  user-select: none; /* กัน text selection ตอนลาก */
 }
 .pipeline-step.gate { border-color: #fbbf24; background: #fffbeb; }
+.pipeline-step.par { border-color: #34d399; background: #ecfdf5; }
+.par-tag { color: #059669; font-weight: 700; margin-right: 4px; }
 .pipeline-step.dragging { opacity: 0.4; }
 .pl-handle { cursor: grab; color: var(--muted); font-size: 14px; }
 .pl-idx {

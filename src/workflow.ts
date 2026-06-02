@@ -179,7 +179,8 @@ export const WORKFLOWS: Workflow[] = [FEATURE_WF];
 // ===== Pipeline ที่ผู้ใช้สร้างเอง (linear + review gate) =====
 export interface PipelineStep {
   agent: string;     // agent id
-  gate?: boolean;    // true = step นี้เป็น review gate ของ task ก่อนหน้า
+  gate?: boolean;    // true = review gate ของ task ก่อนหน้า
+  par?: boolean;     // true = รันพร้อมกับ step ก่อนหน้า (parallel group)
 }
 export interface PipelinePreset {
   id: string;
@@ -187,67 +188,128 @@ export interface PipelinePreset {
   steps: PipelineStep[];
 }
 
-// แปลง ordered steps -> Workflow ที่ engine รันได้ (linear; gate ตีกลับ step ก่อนหน้า loop<=3)
-// label: resolve ชื่อ/บทบาทจาก agent id (รองรับ custom agent ที่ไม่อยู่ใน AGENTS)
-export function buildLinearWorkflow(
+type Seg =
+  | { kind: "task"; i: number }
+  | { kind: "gate"; i: number }
+  | { kind: "par"; idxs: number[] };
+
+// แปลง ordered steps -> Workflow ที่ engine รันได้
+// - step ติดกันที่ par=true รวมเป็น parallel group (fork/join)
+// - gate ตีกลับ task ก่อนหน้า loop<=3 (builder การันตี gate ไม่ตามหลัง group/gate)
+export function buildWorkflow(
   name: string,
   steps: PipelineStep[],
   label: (agentId: string) => { name: string; role: string },
 ): Workflow {
   const n = steps.length;
   const nodes: Record<string, WFNode> = {};
-  const nextId = (i: number) => (i + 1 < n ? `s${i + 1}` : "done");
+  if (n === 0) {
+    nodes.done = { id: "done", kind: "done", title: "เสร็จ ✓" };
+    return { id: `pl-${name}`, name, start: "done", nodes };
+  }
 
-  steps.forEach((step, i) => {
-    const id = `s${i}`;
-    const ag = label(step.agent);
+  // 1) แบ่ง segment: gate เดี่ยว / task เดี่ยว / par group (task ติดกันที่ par)
+  const segs: Seg[] = [];
+  let i = 0;
+  while (i < n) {
+    if (steps[i].gate) {
+      segs.push({ kind: "gate", i });
+      i++;
+      continue;
+    }
+    const group = [i];
+    let j = i + 1;
+    while (j < n && steps[j].par && !steps[j].gate) {
+      group.push(j);
+      j++;
+    }
+    segs.push(group.length > 1 ? { kind: "par", idxs: group } : { kind: "task", i });
+    i = j;
+  }
 
-    if (step.gate) {
-      const authorId = `s${i - 1}`; // gate รีวิว step ก่อนหน้าเสมอ (builder การันตี i>0)
-      nodes[id] = {
-        id,
+  const entry = (s: Seg) => (s.kind === "par" ? `fk${s.idxs[0]}` : `s${s.i}`);
+  // node ids ที่เป็น "ผลงาน" ของ segment (เอาไปต่อ context ให้ segment ถัดไป)
+  const outIds = (s: Seg | undefined): string[] => {
+    if (!s) return [];
+    if (s.kind === "task") return [`s${s.i}`];
+    if (s.kind === "gate") return [`s${s.i - 1}`]; // งานที่ผ่าน review
+    return s.idxs.map((x) => `s${x}`); // par: ทุก branch
+  };
+
+  segs.forEach((seg, k) => {
+    const fwd = k + 1 < segs.length ? entry(segs[k + 1]) : "done";
+    const prevOut = outIds(segs[k - 1]);
+    const ctx = (c: WFCtx) =>
+      prevOut.length
+        ? `งานก่อนหน้า:\n${prevOut.map((id) => c.results[id]).filter(Boolean).join("\n---\n")}\n\n`
+        : "";
+
+    if (seg.kind === "task") {
+      const ag = label(steps[seg.i].agent);
+      const reviewGateId = steps[seg.i + 1]?.gate ? `s${seg.i + 1}` : null;
+      nodes[`s${seg.i}`] = {
+        id: `s${seg.i}`,
+        kind: "task",
+        agent: steps[seg.i].agent,
+        title: `${ag.name} · ${ag.role}`,
+        next: fwd,
+        build: (c) =>
+          `[Pipeline]\nโจทย์: ${c.task}\n\n` +
+          ctx(c) +
+          (reviewGateId ? fb(c, reviewGateId) : "") +
+          `ทำงานต่อตามบทบาทของคุณ ให้ใช้ได้จริง.`,
+      };
+    } else if (seg.kind === "gate") {
+      const ag = label(steps[seg.i].agent);
+      const authorId = `s${seg.i - 1}`;
+      nodes[`s${seg.i}`] = {
+        id: `s${seg.i}`,
         kind: "gate",
-        agent: step.agent,
+        agent: steps[seg.i].agent,
         title: `${ag.name} · review`,
-        onPass: nextId(i),
+        onPass: fwd,
         onFail: authorId,
         maxRetry: 3,
         build: (c) =>
-          `[Pipeline · review]\n` +
-          `โจทย์: ${c.task}\n\n` +
+          `[Pipeline · review]\nโจทย์: ${c.task}\n\n` +
           `งานที่ต้อง review:\n${c.results[authorId] ?? ""}\n\n` +
           `review ตามบทบาทของคุณ — หา bug / ปัญหา / ความครบถ้วน.` +
           GATE_RULE,
       };
-      return;
+    } else {
+      // parallel group -> fork -> branches -> join
+      const b = seg.idxs[0];
+      nodes[`fk${b}`] = {
+        id: `fk${b}`,
+        kind: "fork",
+        title: `ทำพร้อมกัน (${seg.idxs.length})`,
+        branches: seg.idxs.map((x) => `s${x}`),
+        join: `jn${b}`,
+      };
+      seg.idxs.forEach((x) => {
+        const ag = label(steps[x].agent);
+        nodes[`s${x}`] = {
+          id: `s${x}`,
+          kind: "task",
+          agent: steps[x].agent,
+          title: `${ag.name} · ${ag.role}`,
+          next: `jn${b}`,
+          build: (c) =>
+            `[Pipeline · งานขนาน]\nโจทย์: ${c.task}\n\n` +
+            ctx(c) +
+            `ทำงานตามบทบาทของคุณ (รันพร้อมทีมอื่น).`,
+        };
+      });
+      nodes[`jn${b}`] = {
+        id: `jn${b}`,
+        kind: "join",
+        title: "รวมงานขนาน",
+        expected: seg.idxs.length,
+        next: fwd,
+      };
     }
-
-    // task: หา task ก่อนหน้าที่ใกล้สุด (ข้าม gate) เพื่อต่อ output + gate ที่รีวิว step นี้ (feedback ตอน retry)
-    let prevTaskIdx = -1;
-    for (let j = i - 1; j >= 0; j--) {
-      if (!steps[j].gate) { prevTaskIdx = j; break; }
-    }
-    const prevTaskId = prevTaskIdx >= 0 ? `s${prevTaskIdx}` : null;
-    const prevName = prevTaskIdx >= 0 ? label(steps[prevTaskIdx].agent).name : "";
-    const reviewGateId = steps[i + 1]?.gate ? `s${i + 1}` : null;
-
-    nodes[id] = {
-      id,
-      kind: "task",
-      agent: step.agent,
-      title: `${ag.name} · ${ag.role}`,
-      next: nextId(i),
-      build: (c) =>
-        `[Pipeline${i === 0 ? " · เริ่ม" : ""}]\n` +
-        `โจทย์: ${c.task}\n\n` +
-        (prevTaskId && c.results[prevTaskId]
-          ? `งานก่อนหน้า (${prevName}):\n${c.results[prevTaskId]}\n\n`
-          : "") +
-        (reviewGateId ? fb(c, reviewGateId) : "") +
-        `ทำงานต่อตามบทบาทของคุณ ให้ใช้ได้จริง.`,
-    };
   });
 
   nodes.done = { id: "done", kind: "done", title: "เสร็จ ✓" };
-  return { id: `pl-${name}`, name, start: "s0", nodes };
+  return { id: `pl-${name}`, name, start: entry(segs[0]), nodes };
 }

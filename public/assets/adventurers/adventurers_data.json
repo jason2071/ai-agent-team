@@ -1,194 +1,192 @@
-{
-    "guild_adventurers": [
-        {
-            "name": "Kaelen",
-            "role": "Warrior",
-            "gender": "Male",
-            "personality": "Bold, confident, strong-willed, friendly",
-            "dialogueStyle": "Energetic and encouraging",
-            "age": 24,
-            "likes": [
-                "Heavy training",
-                "meat"
-            ],
-            "dislikes": [
-                "Unfairness",
-                "boring days"
-            ],
-            "dailyRoutine": "Practices swordsmanship and guards the guild entrance",
-            "questFunctions": "Frontline tank, vanguard engagement, physical damage",
-            "relationship": "Good friends with Elara, respects Magnus"
-        },
-        {
-            "name": "Ruen",
-            "role": "Thief",
-            "gender": "Male",
-            "personality": "Agile, stealthy, quiet, observant",
-            "dialogueStyle": "Low-toned and mysterious",
-            "age": 21,
-            "likes": [
-                "Shiny objects",
-                "rooftops"
-            ],
-            "dislikes": [
-                "Loud noises",
-                "crowded places"
-            ],
-            "dailyRoutine": "Scouts dangerous areas and checks traps",
-            "questFunctions": "Infiltration, lockpicking, scouting, stealth takedowns",
-            "relationship": "Works silently with Nyx, often avoids Van"
-        },
-        {
-            "name": "Gavin",
-            "role": "Ranger",
-            "gender": "Male",
-            "personality": "Sharp-eyed, calm, precise, independent",
-            "dialogueStyle": "Soft-spoken but direct",
-            "age": 112,
-            "likes": [
-                "Archery practice",
-                "quiet forests"
-            ],
-            "dislikes": [
-                "Pollution",
-                "noisy cities"
-            ],
-            "dailyRoutine": "Patrols the guild borders and checks wind conditions",
-            "questFunctions": "Long-range physical support, tracking, reconnaissance",
-            "relationship": "Often discusses nature with Sera"
-        },
-        {
-            "name": "Magnus",
-            "role": "Paladin",
-            "gender": "Male",
-            "personality": "Patient, resilient, protective, veteran",
-            "dialogueStyle": "Wise and paternal",
-            "age": 48,
-            "likes": [
-                "Polishing his armor",
-                "helping rookies"
-            ],
-            "dislikes": [
-                "Cruelty",
-                "cowardice"
-            ],
-            "dailyRoutine": "Coaches young adventurers and maintains heavy gear",
-            "questFunctions": "Main defensive shield, crowd control, divine protection",
-            "relationship": "Acts like a mentor to Kaelen and Elara"
-        },
-        {
-            "name": "Silas",
-            "role": "Wizard",
-            "gender": "Male",
-            "personality": "Intellectual, mysterious, deeply analytical, eccentric",
-            "dialogueStyle": "Riddling and philosophical",
-            "age": 56,
-            "likes": [
-                "Ancient arcane books",
-                "magical anomalies"
-            ],
-            "dislikes": [
-                "Ignorance",
-                "interruptions"
-            ],
-            "dailyRoutine": "Studies old magic scrolls in the laboratory",
-            "questFunctions": "Heavy area-of-effect magic, elemental control, ritual spellcasting",
-            "relationship": "Often seen exchanging rare books with Yuri"
-        },
-        {
-            "name": "Elara",
-            "role": "Knight",
-            "gender": "Female",
-            "personality": "Disciplined, loyal, protective, fierce",
-            "dialogueStyle": "Formal and authoritative",
-            "age": 26,
-            "likes": [
-                "Honor",
-                "tactical strategy"
-            ],
-            "dislikes": [
-                "Betrayal",
-                "laziness"
-            ],
-            "dailyRoutine": "Runs drills and inspects defensive equipment",
-            "questFunctions": "Frontline protection, tactical leading, sword combat",
-            "relationship": "Trains with Kaelen, deeply respects Magnus"
-        },
-        {
-            "name": "Nyx",
-            "role": "Assassin",
-            "gender": "Female",
-            "personality": "Cunning, quiet, calculating, ruthless to enemies",
-            "dialogueStyle": "Cold, short, and to the point",
-            "age": 23,
-            "likes": [
-                "Poison brewing",
-                "dark nights"
-            ],
-            "dislikes": [
-                "Bright lights",
-                "small talk"
-            ],
-            "dailyRoutine": "Inspects her cross-bow and tests new poison mixtures",
-            "questFunctions": "High burst damage, single-target elimination, stealth",
-            "relationship": "Keeps a professional distance, coordinates with Ruen"
-        },
-        {
-            "name": "Sera",
-            "role": "Druid",
-            "gender": "Female",
-            "personality": "Nature-loving, gentle, balanced, cheerful",
-            "dialogueStyle": "Warm and empathetic",
-            "age": 95,
-            "likes": [
-                "Small animals",
-                "forest flowers"
-            ],
-            "dislikes": [
-                "Industrial smoke",
-                "habitat destruction"
-            ],
-            "dailyRoutine": "Tends to the guild's garden and treats injured animal companions",
-            "questFunctions": "Nature-based healing, crowd control, beast summoning",
-            "relationship": "Friendly with Gavin, shares herbal knowledge with Serena"
-        },
-        {
-            "name": "Gaia",
-            "role": "Explorer",
-            "gender": "Female",
-            "personality": "Witty, adventurous, curious, energetic",
-            "dialogueStyle": "Enthusiastic and full of wonder",
-            "age": 19,
-            "likes": [
-                "Uncharted maps",
-                "discovering relics"
-            ],
-            "dislikes": [
-                "Staying indoors for too long",
-                "routine tasks"
-            ],
-            "dailyRoutine": "Draws new maps and packages exploration gear",
-            "questFunctions": "Resource gathering, navigation, hidden path discovery",
-            "relationship": "Always asking Ivy for bounty leads and map details"
-        },
-        {
-            "name": "Isola",
-            "role": "Priestess",
-            "gender": "Female",
-            "personality": "Pure-hearted, faithful, serene, compassionate",
-            "dialogueStyle": "Soft, polite, and reassuring",
-            "age": 22,
-            "likes": [
-                "Holy water",
-                "morning prayers"
-            ],
-            "dislikes": [
-                "Dark magic",
-                "suffering of others"
-            ],
-            "dailyRoutine": "Blesses outgoing adventurers and manages the infirmary",
-            "questFunctions": "Divine healing, status purification, holy magic buffs",
-            "relationship": "Works alongside Finn to document successful heals and recovery"
-        }
-    ]
-}
+[
+    {
+        "name": "Kaelen",
+        "role": "Warrior",
+        "gender": "Male",
+        "personality": "Bold, confident, strong-willed, friendly",
+        "dialogueStyle": "Energetic and encouraging",
+        "age": 24,
+        "likes": [
+            "Heavy training",
+            "meat"
+        ],
+        "dislikes": [
+            "Unfairness",
+            "boring days"
+        ],
+        "dailyRoutine": "Practices swordsmanship and guards the guild entrance",
+        "questFunctions": "Frontline tank, vanguard engagement, physical damage",
+        "relationship": "Good friends with Elara, respects Magnus"
+    },
+    {
+        "name": "Ruen",
+        "role": "Thief",
+        "gender": "Male",
+        "personality": "Agile, stealthy, quiet, observant",
+        "dialogueStyle": "Low-toned and mysterious",
+        "age": 21,
+        "likes": [
+            "Shiny objects",
+            "rooftops"
+        ],
+        "dislikes": [
+            "Loud noises",
+            "crowded places"
+        ],
+        "dailyRoutine": "Scouts dangerous areas and checks traps",
+        "questFunctions": "Infiltration, lockpicking, scouting, stealth takedowns",
+        "relationship": "Works silently with Nyx, often avoids Van"
+    },
+    {
+        "name": "Gavin",
+        "role": "Ranger",
+        "gender": "Male",
+        "personality": "Sharp-eyed, calm, precise, independent",
+        "dialogueStyle": "Soft-spoken but direct",
+        "age": 112,
+        "likes": [
+            "Archery practice",
+            "quiet forests"
+        ],
+        "dislikes": [
+            "Pollution",
+            "noisy cities"
+        ],
+        "dailyRoutine": "Patrols the guild borders and checks wind conditions",
+        "questFunctions": "Long-range physical support, tracking, reconnaissance",
+        "relationship": "Often discusses nature with Sera"
+    },
+    {
+        "name": "Magnus",
+        "role": "Paladin",
+        "gender": "Male",
+        "personality": "Patient, resilient, protective, veteran",
+        "dialogueStyle": "Wise and paternal",
+        "age": 48,
+        "likes": [
+            "Polishing his armor",
+            "helping rookies"
+        ],
+        "dislikes": [
+            "Cruelty",
+            "cowardice"
+        ],
+        "dailyRoutine": "Coaches young adventurers and maintains heavy gear",
+        "questFunctions": "Main defensive shield, crowd control, divine protection",
+        "relationship": "Acts like a mentor to Kaelen and Elara"
+    },
+    {
+        "name": "Silas",
+        "role": "Wizard",
+        "gender": "Male",
+        "personality": "Intellectual, mysterious, deeply analytical, eccentric",
+        "dialogueStyle": "Riddling and philosophical",
+        "age": 56,
+        "likes": [
+            "Ancient arcane books",
+            "magical anomalies"
+        ],
+        "dislikes": [
+            "Ignorance",
+            "interruptions"
+        ],
+        "dailyRoutine": "Studies old magic scrolls in the laboratory",
+        "questFunctions": "Heavy area-of-effect magic, elemental control, ritual spellcasting",
+        "relationship": "Often seen exchanging rare books with Yuri"
+    },
+    {
+        "name": "Elara",
+        "role": "Knight",
+        "gender": "Female",
+        "personality": "Disciplined, loyal, protective, fierce",
+        "dialogueStyle": "Formal and authoritative",
+        "age": 26,
+        "likes": [
+            "Honor",
+            "tactical strategy"
+        ],
+        "dislikes": [
+            "Betrayal",
+            "laziness"
+        ],
+        "dailyRoutine": "Runs drills and inspects defensive equipment",
+        "questFunctions": "Frontline protection, tactical leading, sword combat",
+        "relationship": "Trains with Kaelen, deeply respects Magnus"
+    },
+    {
+        "name": "Nyx",
+        "role": "Assassin",
+        "gender": "Female",
+        "personality": "Cunning, quiet, calculating, ruthless to enemies",
+        "dialogueStyle": "Cold, short, and to the point",
+        "age": 23,
+        "likes": [
+            "Poison brewing",
+            "dark nights"
+        ],
+        "dislikes": [
+            "Bright lights",
+            "small talk"
+        ],
+        "dailyRoutine": "Inspects her cross-bow and tests new poison mixtures",
+        "questFunctions": "High burst damage, single-target elimination, stealth",
+        "relationship": "Keeps a professional distance, coordinates with Ruen"
+    },
+    {
+        "name": "Sera",
+        "role": "Druid",
+        "gender": "Female",
+        "personality": "Nature-loving, gentle, balanced, cheerful",
+        "dialogueStyle": "Warm and empathetic",
+        "age": 95,
+        "likes": [
+            "Small animals",
+            "forest flowers"
+        ],
+        "dislikes": [
+            "Industrial smoke",
+            "habitat destruction"
+        ],
+        "dailyRoutine": "Tends to the guild's garden and treats injured animal companions",
+        "questFunctions": "Nature-based healing, crowd control, beast summoning",
+        "relationship": "Friendly with Gavin, shares herbal knowledge with Serena"
+    },
+    {
+        "name": "Gaia",
+        "role": "Explorer",
+        "gender": "Female",
+        "personality": "Witty, adventurous, curious, energetic",
+        "dialogueStyle": "Enthusiastic and full of wonder",
+        "age": 19,
+        "likes": [
+            "Uncharted maps",
+            "discovering relics"
+        ],
+        "dislikes": [
+            "Staying indoors for too long",
+            "routine tasks"
+        ],
+        "dailyRoutine": "Draws new maps and packages exploration gear",
+        "questFunctions": "Resource gathering, navigation, hidden path discovery",
+        "relationship": "Always asking Ivy for bounty leads and map details"
+    },
+    {
+        "name": "Isola",
+        "role": "Priestess",
+        "gender": "Female",
+        "personality": "Pure-hearted, faithful, serene, compassionate",
+        "dialogueStyle": "Soft, polite, and reassuring",
+        "age": 22,
+        "likes": [
+            "Holy water",
+            "morning prayers"
+        ],
+        "dislikes": [
+            "Dark magic",
+            "suffering of others"
+        ],
+        "dailyRoutine": "Blesses outgoing adventurers and manages the infirmary",
+        "questFunctions": "Divine healing, status purification, holy magic buffs",
+        "relationship": "Works alongside Finn to document successful heals and recovery"
+    }
+]

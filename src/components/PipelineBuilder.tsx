@@ -108,8 +108,8 @@ export function PipelineBuilder({
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className={`modal ${draft ? "wide" : ""}`} onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop">
+      <div className={`modal ${draft ? "wide" : ""}`}>
         <div className="modal-head">
           <h2>Pipeline Builder</h2>
           <button className="modal-x" onClick={onClose}>✕</button>

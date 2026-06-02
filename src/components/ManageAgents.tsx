@@ -53,8 +53,8 @@ export function ManageAgents({
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop">
+      <div className="modal">
         <div className="modal-head">
           <h2>จัดการ Agent</h2>
           <button className="modal-x" onClick={onClose}>✕</button>

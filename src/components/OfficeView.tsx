@@ -1,23 +1,21 @@
 import type { Agent } from "../agents";
-import { Avatar } from "./Avatar";
 
 interface Message {
   role: "user" | "assistant" | "system";
   text: string;
 }
 
-// ตำแหน่งกระจายในห้อง (left%, top%, scale) — depth ด้วย scale+top
+// ยืนหน้า station ใน guild.png (left%, top%, scale) — หลบ panel ซ้าย/ขวา
+// depth: top มาก = อยู่หน้า = scale ใหญ่. เรียงตาม AGENTS:
+// Serena, Rex, Mia, Kelvin, Yuri, Eve, Darius
 const SLOTS = [
-  { l: 30, t: 30, s: 0.92 },
-  { l: 52, t: 22, s: 0.86 },
-  { l: 70, t: 30, s: 0.92 },
-  { l: 20, t: 52, s: 1.0 },
-  { l: 44, t: 56, s: 1.05 },
-  { l: 66, t: 54, s: 1.02 },
-  { l: 84, t: 46, s: 0.96 },
-  { l: 36, t: 74, s: 1.1 },
-  { l: 58, t: 76, s: 1.12 },
-  { l: 78, t: 70, s: 1.06 },
+  { l: 52, t: 76, s: 1.22 }, // Serena — waiting area (foreground)
+  { l: 28, t: 67, s: 1.14 }, // Rex — lower left
+  { l: 50, t: 27, s: 0.82 }, // Mia — quest board (back)
+  { l: 50, t: 49, s: 1.0 },  // Kelvin — reception (center)
+  { l: 19, t: 50, s: 0.98 }, // Yuri — item storage (left)
+  { l: 80, t: 37, s: 0.9 },  // Eve — reward/payment (right)
+  { l: 82, t: 56, s: 1.06 }, // Darius — rank board (right)
 ];
 
 export function OfficeView({
@@ -62,17 +60,12 @@ export function OfficeView({
           return (
             <button
               key={a.id}
-              className={`desk ${a.id === activeId ? "sel" : ""}`}
-              style={{ left: `${slot.l}%`, top: `${slot.t}%`, transform: `translate(-50%,-50%) scale(${slot.s})` }}
+              className={`desk ${a.id === activeId ? "sel" : ""} ${running ? "running" : ""}`}
+              style={{ left: `${slot.l}%`, top: `${slot.t}%`, transform: `translate(-50%,-50%) scale(${slot.s})`, ["--accent" as string]: a.accent }}
               onClick={() => onSelect(a.id)}
               title={`คุยกับ ${a.name}`}
             >
-              <div className="desk-monitor" style={{ borderColor: `${a.accent}aa`, boxShadow: `0 0 12px ${a.accent}55` }}>
-                <span className="scan" style={{ background: a.accent }} />
-              </div>
-              <div className="desk-char">
-                <Avatar agent={a} size={40} active={running} />
-              </div>
+              <img className="guild-sprite" src={a.avatar} alt={a.name} draggable={false} />
               <div className="desk-tag" style={{ borderColor: `${a.accent}55` }}>
                 <span className={`stat-dot ${running ? "on" : ""}`} style={{ background: running ? a.accent : "#475569" }} />
                 {a.name}

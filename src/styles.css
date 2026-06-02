@@ -546,23 +546,24 @@ body {
   z-index: 2;
 }
 .desk:hover { filter: brightness(1.15) drop-shadow(0 6px 14px rgba(0,0,0,0.5)); }
-.desk-monitor {
-  width: 54px;
-  height: 30px;
-  border: 1.5px solid;
-  border-radius: 3px;
-  background: linear-gradient(180deg, #0b1220, #060a14);
-  position: relative;
-  overflow: hidden;
+/* ตัวละคร guild — pixel-art sprite ยืนหน้า station */
+.guild-sprite {
+  height: 132px;
+  width: auto;
+  display: block;
+  image-rendering: pixelated;            /* คม ไม่เบลอเวลา scale pixel-art */
+  filter: drop-shadow(0 7px 5px rgba(0,0,0,0.55));
+  transition: filter 0.15s, transform 0.15s;
 }
-.desk-monitor .scan {
-  position: absolute;
-  left: 0; right: 0; height: 3px; top: 0;
-  opacity: 0.6;
-  animation: scan 2.2s linear infinite;
+.desk:hover .guild-sprite { transform: translateY(-3px); }
+.desk.sel .guild-sprite {
+  filter: drop-shadow(0 0 10px var(--accent)) drop-shadow(0 7px 5px rgba(0,0,0,0.6));
 }
-@keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
-.desk-char { margin-top: -6px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5)); }
+.desk.running .guild-sprite {
+  filter: drop-shadow(0 0 12px var(--accent)) drop-shadow(0 7px 5px rgba(0,0,0,0.6));
+  animation: bob 1.6s ease-in-out infinite;
+}
+@keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 .desk-tag {
   margin-top: 2px;
   display: inline-flex;

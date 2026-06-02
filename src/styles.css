@@ -630,7 +630,28 @@ body {
 .modal-x:hover { color: var(--text); }
 .modal-foot { display: flex; gap: 8px; margin-top: 14px; }
 
+.agent-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: #f1f4fa;
+  border-radius: 999px;
+  padding: 1px 9px;
+  margin-left: 4px;
+}
+.agent-search { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.agent-search input {
+  flex: 1;
+  padding: 7px 11px;
+  font-size: 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  outline: none;
+}
+.agent-search input:focus { border-color: var(--muted); }
 .agent-list { display: flex; flex-direction: column; gap: 8px; }
+.agent-list.scroll { max-height: 56vh; overflow-y: auto; padding-right: 2px; }
+.agent-empty { text-align: center; padding: 24px 0; font-size: 13px; }
 .agent-row {
   display: flex;
   align-items: center;
@@ -638,6 +659,22 @@ body {
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
+}
+.agent-row-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+  border: 2px solid var(--line);
+}
+.agent-row-avatar.initials {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border: none;
 }
 .dot-accent { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
 .agent-row-meta { display: flex; flex-direction: column; min-width: 110px; }

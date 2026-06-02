@@ -41,6 +41,16 @@ export function ManageAgents({
   onReset: () => void;
 }) {
   const [draft, setDraft] = useState<Agent | null>(null);
+  const [query, setQuery] = useState("");
+
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? agents.filter(
+        (a) =>
+          a.name.toLowerCase().includes(q) ||
+          a.role.toLowerCase().includes(q),
+      )
+    : agents;
 
   function upsert(a: Agent) {
     const exists = agents.some((x) => x.id === a.id);
@@ -56,7 +66,7 @@ export function ManageAgents({
     <div className="modal-backdrop">
       <div className="modal">
         <div className="modal-head">
-          <h2>จัดการ Agent</h2>
+          <h2>จัดการ Agent <span className="agent-count">{agents.length}</span></h2>
           <button className="modal-x" onClick={onClose}>✕</button>
         </div>
 
@@ -69,10 +79,27 @@ export function ManageAgents({
           />
         ) : (
           <>
-            <div className="agent-list">
-              {agents.map((a) => (
+            {agents.length > 6 && (
+              <div className="agent-search">
+                <input
+                  placeholder="ค้นหาชื่อ / บทบาท…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  autoFocus
+                />
+                {q && <button className="modal-x" onClick={() => setQuery("")}>✕</button>}
+              </div>
+            )}
+            <div className="agent-list scroll">
+              {filtered.map((a) => (
                 <div key={a.id} className="agent-row">
-                  <span className="dot-accent" style={{ background: a.accent }} />
+                  {a.avatar ? (
+                    <img className="agent-row-avatar" src={a.avatar} alt="" style={{ borderColor: a.accent }} />
+                  ) : (
+                    <span className="agent-row-avatar initials" style={{ background: a.accent }}>
+                      {a.initials || a.name.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
                   <div className="agent-row-meta">
                     <b>
                       {a.name} <span className="muted">{a.gender === "female" ? "♀" : "♂"}</span>
@@ -88,6 +115,9 @@ export function ManageAgents({
                   </button>
                 </div>
               ))}
+              {filtered.length === 0 && (
+                <div className="agent-empty muted">ไม่พบ agent ที่ตรงกับ “{query}”</div>
+              )}
             </div>
             <div className="modal-foot">
               <button className="mini" onClick={() => setDraft(blank())}>+ เพิ่ม agent</button>

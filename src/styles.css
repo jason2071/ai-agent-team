@@ -373,6 +373,38 @@ body {
   background: #f1f4fa;
   border-color: #c3ccde;
 }
+.tool-btn.ghost {
+  background: transparent;
+  border-style: dashed;
+  color: var(--muted);
+}
+.tool-btn.ghost:hover { background: #f1f4fa; color: var(--text); }
+/* quick-reply ตัวเลือกที่ agent ถามมา */
+.quick-replies {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 0;
+}
+.qr-label { font-size: 11px; color: var(--muted); }
+.qr-btn {
+  background: #fff;
+  border: 1px solid;
+  border-radius: 14px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: "Space Mono", monospace;
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: filter 0.15s;
+}
+.qr-btn:hover { filter: brightness(0.96); }
+
 .tool-x, .chip-x {
   background: transparent;
   border: none;

@@ -85,17 +85,39 @@ function loadPersisted(): {
   chats: Record<string, Message[]>;
   sessions: Record<string, string>;
   cwds: Record<string, string>;
+  projectDir: string | null;
 } {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const p = JSON.parse(raw);
-      return { chats: p.chats ?? {}, sessions: p.sessions ?? {}, cwds: p.cwds ?? {} };
+      return {
+        chats: p.chats ?? {},
+        sessions: p.sessions ?? {},
+        cwds: p.cwds ?? {},
+        projectDir: p.projectDir ?? null,
+      };
     }
   } catch {
     /* corrupt -> เริ่มใหม่ */
   }
-  return { chats: {}, sessions: {}, cwds: {} };
+  return { chats: {}, sessions: {}, cwds: {}, projectDir: null };
+}
+
+// ดึงตัวเลือกจากคำตอบ agent เพื่อทำปุ่ม quick-reply
+// เงื่อนไข: ต้องดูเป็นคำถามให้เลือก + มีรายการ 2-6 ข้อ (เลข/ตัวอักษร นำหน้า)
+function parseChoices(text: string): string[] {
+  if (!/[?？]|เลือก|อันไหน|แบบไหน|ข้อไหน|ตัวเลือก|หรือไม่|จะเอา/.test(text)) return [];
+  const opts: string[] = [];
+  for (const line of text.split("\n")) {
+    // "1. ..." / "2) ..." / "A) ..." / "- ..." (ขึ้นต้นรายการ) ตามด้วยข้อความสั้น
+    const m = line.match(/^\s*(?:\d{1,2}|[A-Za-z])[.)]\s+(.{1,80}?)\s*$/);
+    if (m) {
+      // ตัด markdown bold/`code` ออกจาก label
+      opts.push(m[1].replace(/[*`_]/g, "").trim());
+    }
+  }
+  return opts.length >= 2 && opts.length <= 6 ? opts : [];
 }
 
 export default function App() {
@@ -121,8 +143,12 @@ export default function App() {
     task: string;
     cwd: string | null;
   } | null>(null);
-  // project folder ต่อ agent (ส่งเป็น cwd) + ไฟล์แนบสำหรับข้อความถัดไป
+  // global project folder — agent ทุกตัวใช้ร่วมกันเป็น default (ทำงาน project เดียวกัน)
+  const [projectDir, setProjectDir] = useState<string | null>(persisted.projectDir);
+  // override per-agent — ถ้าตั้งใจให้ตัวนี้ทำงานคนละ folder (ไม่มี = ใช้ projectDir)
   const [cwds, setCwds] = useState<Record<string, string>>(persisted.cwds);
+  // cwd จริงที่ส่งให้ agent: override ตัวเอง > global project > null
+  const effectiveCwd = (id: string): string | null => cwds[id] ?? projectDir;
   const [attached, setAttached] = useState<
     { name: string; text: string; path?: string; isImage?: boolean }[]
   >([]);
@@ -136,11 +162,11 @@ export default function App() {
   // persist chats/sessions/cwds ทุกครั้งที่เปลี่ยน
   useEffect(() => {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ chats, sessions, cwds }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ chats, sessions, cwds, projectDir }));
     } catch {
       /* quota เต็ม -> ข้าม */
     }
-  }, [chats, sessions, cwds]);
+  }, [chats, sessions, cwds, projectDir]);
 
   // persist agents
   useEffect(() => {
@@ -337,7 +363,13 @@ export default function App() {
         ? `${typed}${typed ? "\n" : ""}📎 ${attached.map((f) => (f.isImage ? "🖼 " : "") + f.name).join(", ")}`
         : typed;
     setAttached([]);
-    runFor(active, prompt, shownText, cwds[activeId] ?? null, sessions[activeId] ?? null);
+    runFor(active, prompt, shownText, effectiveCwd(activeId), sessions[activeId] ?? null);
+  }
+
+  // ตอบ quick-reply: ส่ง option ที่คลิกเป็นข้อความถัดไป (resume session เดิม)
+  function sendQuick(text: string) {
+    if (isBusy(activeId)) return;
+    runFor(active, text, text, effectiveCwd(activeId), sessions[activeId] ?? null);
   }
 
   // หยุด agent ที่กำลังรัน
@@ -369,7 +401,7 @@ export default function App() {
     if (seqMode) {
       const steps = handoffSel.filter((id) => !isBusy(id));
       if (steps.length === 0) return;
-      const cwd = cwds[activeId] ?? null;
+      const cwd = effectiveCwd(activeId);
       const first = AGENTS.find((a) => a.id === steps[0])!;
       const prompt =
         `[Auto-chain ขั้น 1/${steps.length}]\n` +
@@ -392,7 +424,7 @@ export default function App() {
         `บทสนทนาก่อนหน้า:\n${transcript}\n\n` +
         `---\n@${target.name} ช่วยรับงานต่อตามบทบาทของคุณ`;
       // handoff = session ใหม่ (resume null) เพราะ transcript inline ใน prompt แล้ว -> กัน context ซ้ำ
-      runFor(target, prompt, `[รับช่วงงานจาก ${active.name}]`, cwds[tid] ?? null, null);
+      runFor(target, prompt, `[รับช่วงงานจาก ${active.name}]`, effectiveCwd(tid), null);
     }
     setHandoffSel([]);
   }
@@ -409,16 +441,55 @@ export default function App() {
     }
   }
 
-  // เลือก project folder -> เก็บเป็น cwd ของ agent ปัจจุบัน
-  async function pickFolder() {
+  // claude เก็บ session แยกตาม project dir -> resume ข้าม folder = "No conversation found"
+  // เปลี่ยน cwd = ต้อง drop session ของ agent ที่ได้รับผลกระทบ แล้วเริ่มใหม่
+  function dropSession(id: string, note: string) {
+    if (!sessions[id]) return;
+    setSessions((s) => {
+      const n = { ...s };
+      delete n[id];
+      return n;
+    });
+    setChats((c) => ({
+      ...c,
+      [id]: [...(c[id] ?? []), { role: "system", text: note }],
+    }));
+  }
+
+  // global project — agent ทุกตัว (ที่ไม่ override) ทำงาน folder นี้
+  async function pickProject() {
+    const dir = await open({ directory: true, multiple: false, defaultPath: projectDir ?? undefined });
+    if (typeof dir !== "string" || dir === projectDir) return;
+    setProjectDir(dir);
+    // drop session ของทุกตัวที่ใช้ global (ไม่มี override) เพราะ cwd เปลี่ยน
+    for (const a of agents) {
+      if (!cwds[a.id]) dropSession(a.id, `📁 project → ${dir}\nเริ่ม session ใหม่ (resume ข้าม folder ไม่ได้)`);
+    }
+  }
+
+  // override เฉพาะ agent ปัจจุบัน (ตั้งใจแยก project)
+  async function pickAgentFolder() {
     const dir = await open({
       directory: true,
       multiple: false,
-      defaultPath: cwds[activeId],
+      defaultPath: cwds[activeId] ?? projectDir ?? undefined,
     });
-    if (typeof dir === "string") {
-      setCwds((c) => ({ ...c, [activeId]: dir }));
-    }
+    if (typeof dir !== "string") return;
+    const changed = dir !== effectiveCwd(activeId);
+    setCwds((c) => ({ ...c, [activeId]: dir }));
+    if (changed) dropSession(activeId, `📁 แยก folder → ${dir}\nเริ่ม session ใหม่`);
+  }
+
+  // ล้าง override -> กลับไปใช้ global project
+  function clearAgentFolder() {
+    if (!(activeId in cwds)) return;
+    const changed = cwds[activeId] !== effectiveCwd(activeId) || cwds[activeId] !== projectDir;
+    setCwds((c) => {
+      const n = { ...c };
+      delete n[activeId];
+      return n;
+    });
+    if (changed) dropSession(activeId, `📁 กลับไปใช้ project รวม${projectDir ? ` → ${projectDir}` : ""}\nเริ่ม session ใหม่`);
   }
 
   // แนบไฟล์: text -> อ่าน content inline; รูป -> เก็บ path ให้ agent เปิดด้วย Read tool
@@ -576,18 +647,47 @@ export default function App() {
           )}
         </div>
 
+        {/* quick-reply: ปุ่มตอบตัวเลือกที่ agent ถามมา (resume session) */}
+        {(() => {
+          const last = messages[messages.length - 1];
+          if (!last || last.role !== "assistant" || isBusy(activeId)) return null;
+          const choices = parseChoices(last.text);
+          if (choices.length === 0) return null;
+          return (
+            <div className="quick-replies">
+              <span className="qr-label">ตอบเร็ว:</span>
+              {choices.map((c, i) => (
+                <button
+                  key={i}
+                  className="qr-btn"
+                  onClick={() => sendQuick(c)}
+                  title={c}
+                  style={{ borderColor: `${active.accent}66`, color: active.accent }}
+                >
+                  {c.length > 44 ? c.slice(0, 44) + "…" : c}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
+
         <div className="composer">
           <div className="composer-tools">
-            <button className="tool-btn" onClick={pickFolder} title="เลือก project folder (cwd)">
-              📁 {cwds[activeId] ? cwds[activeId].split("/").pop() : "เลือก folder"}
+            {/* global project — ทุก agent ใช้ร่วมกัน */}
+            <button className="tool-btn" onClick={pickProject} title="เลือก project รวม (agent ทุกตัวใช้ folder นี้)">
+              📁 {projectDir ? projectDir.split("/").pop() : "เลือก project"}
             </button>
-            {cwds[activeId] && (
-              <button
-                className="tool-x"
-                onClick={() => setCwds((c) => { const n = { ...c }; delete n[activeId]; return n; })}
-                title="ล้าง folder"
-              >
-                ✕
+            {/* per-agent override */}
+            {cwds[activeId] ? (
+              <span className="chip" title={`${active.name} แยก: ${cwds[activeId]}`}>
+                ⤲ {cwds[activeId].split("/").pop()}
+                <button className="chip-x" onClick={clearAgentFolder} title="กลับไปใช้ project รวม">
+                  ✕
+                </button>
+              </span>
+            ) : (
+              <button className="tool-btn ghost" onClick={pickAgentFolder} title={`ให้ ${active.name} ทำงานคนละ folder`}>
+                ⤲ แยก
               </button>
             )}
             <button className="tool-btn" onClick={attachFiles} title="แนบไฟล์">

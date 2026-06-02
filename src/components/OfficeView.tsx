@@ -1,5 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Agent } from "../agents";
+
+const LS_PANELS = "ai-agent-team:panels:v1";
+function loadPanels(): { left: boolean; right: boolean } {
+  try {
+    const r = localStorage.getItem(LS_PANELS);
+    if (r) { const p = JSON.parse(r); return { left: !!p.left, right: !!p.right }; }
+  } catch {
+    /* ข้าม */
+  }
+  return { left: false, right: false };
+}
 
 interface Message {
   role: "user" | "assistant" | "system";
@@ -7,16 +18,17 @@ interface Message {
 }
 
 // ยืนหน้า station ใน guild.png (left%, top%, scale) — หลบ panel ซ้าย/ขวา
-// depth: top มาก = อยู่หน้า = scale ใหญ่. เรียงตาม AGENTS:
-// Serena, Rex, Mia, Kelvin, Yuri, Eve, Darius
+// depth: top มาก = อยู่หน้า = scale ใหญ่. ต้องมี slot ≥ จำนวน agent (กันทับ)
+// ลำดับ AGENTS: Serena, Rex, Mia, Kelvin, Yuri, Finn, Eve, Darius
 const SLOTS = [
-  { l: 52, t: 76, s: 1.22 }, // Serena — waiting area (foreground)
-  { l: 28, t: 67, s: 1.14 }, // Rex — lower left
-  { l: 50, t: 27, s: 0.82 }, // Mia — quest board (back)
-  { l: 50, t: 49, s: 1.0 },  // Kelvin — reception (center)
-  { l: 19, t: 50, s: 0.98 }, // Yuri — item storage (left)
-  { l: 80, t: 37, s: 0.9 },  // Eve — reward/payment (right)
-  { l: 82, t: 56, s: 1.06 }, // Darius — rank board (right)
+  { l: 50, t: 27, s: 0.82 }, // quest board (back center)
+  { l: 19, t: 50, s: 0.98 }, // item storage (mid left)
+  { l: 80, t: 37, s: 0.9 },  // reward (upper right)
+  { l: 50, t: 49, s: 1.0 },  // reception (center)
+  { l: 82, t: 58, s: 1.06 }, // rank board (mid right)
+  { l: 30, t: 68, s: 1.14 }, // lower left
+  { l: 50, t: 78, s: 1.22 }, // waiting area (front center)
+  { l: 72, t: 76, s: 1.18 }, // lower right
 ];
 
 export function OfficeView({
@@ -38,11 +50,11 @@ export function OfficeView({
 }) {
   const isBusy = (id: string) => !!busy[id];
   const runningCount = agents.filter((a) => isBusy(a.id)).length;
-  // พับ panel เก็บได้ — กันบังตัวละคร
-  const [collapsed, setCollapsed] = useState<{ left: boolean; right: boolean }>({
-    left: false,
-    right: false,
-  });
+  // พับ panel เก็บได้ — กันบังตัวละคร (persist localStorage)
+  const [collapsed, setCollapsed] = useState<{ left: boolean; right: boolean }>(loadPanels);
+  useEffect(() => {
+    try { localStorage.setItem(LS_PANELS, JSON.stringify(collapsed)); } catch { /* ข้าม */ }
+  }, [collapsed]);
 
   // activity feed: ข้อความ assistant ล่าสุดข้ามทุก agent
   const feed: { name: string; accent: string; text: string }[] = [];

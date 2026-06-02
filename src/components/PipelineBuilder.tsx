@@ -20,6 +20,7 @@ import "@xyflow/react/dist/style.css";
 import type { Agent } from "../agents";
 import {
   graphToWorkflow,
+  isGateRole,
   type PipelinePreset,
   type PipelineGraph,
 } from "../workflow";
@@ -41,7 +42,7 @@ interface AgentData {
 function AgentNode({ id, data }: NodeProps) {
   const rf = useReactFlow();
   const d = data as AgentData;
-  const isGate = /review/i.test(d.role); // reviewer = gate อัตโนมัติ
+  const isGate = isGateRole(d.role); // reviewer / QA-tester = gate อัตโนมัติ
   return (
     <div className={`rf-agent-node ${isGate ? "review" : ""}`} style={{ borderColor: d.accent }}>
       <Handle type="target" position={Position.Left} />
@@ -89,7 +90,7 @@ export function PipelineBuilder({
   };
   const summary = (p: PipelinePreset) => {
     if (p.graph) {
-      const rev = p.graph.nodes.some((n) => /review/i.test(label(n.agent).role));
+      const rev = p.graph.nodes.some((n) => isGateRole(label(n.agent).role));
       return `${p.graph.nodes.length} node · ${p.graph.edges.length} เส้น${rev ? " · มี gate" : ""}`;
     }
     return (p.steps ?? [])
@@ -337,7 +338,7 @@ function EditorInner({
         ))}
       </div>
       <div className="muted small">
-        คลิกปุ่ม agent = เพิ่ม node · ลากจากจุดขวาของ node ไปจุดซ้ายอีก node = ต่อเส้น (แตก 2 เส้น = ขนาน) · เอา <b>🛡 Darius (reviewer)</b> มาคั่น = gate ตรวจงานตัวก่อนหน้า (ไม่ผ่าน→ตีกลับ ≤3) · ลบ: คลิก node แล้วกด Backspace
+        คลิกปุ่ม agent = เพิ่ม node · ลากจากจุดขวาของ node ไปจุดซ้ายอีก node = ต่อเส้น (แตก 2 เส้น = ขนาน) · เอา <b>🛡 reviewer/tester (Darius, Eve)</b> มาคั่น = gate ตรวจ/เทสงานตัวก่อนหน้า (ไม่ผ่าน→ตีกลับ ≤3) · ลบ: คลิก node แล้วกด Backspace
       </div>
 
       <div className="pl-canvas" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>

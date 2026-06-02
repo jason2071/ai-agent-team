@@ -54,6 +54,9 @@ export const GATE_RULE =
   "\n\n---\n[คำสั่งสำหรับ reviewer] บรรทัดสุดท้ายต้องเป็น `VERDICT: PASS` ถ้าผ่านเกณฑ์ทั้งหมด " +
   "หรือ `VERDICT: FAIL` ถ้ามีจุดต้องแก้ แล้วตามด้วย bullet สั้น ๆ ว่าต้องแก้อะไร (ให้ author เอาไปแก้ได้).";
 
+// agent ที่เป็น "ด่านตรวจ" (gate): reviewer หรือ QA/tester — role มีคำพวกนี้
+export const isGateRole = (role: string): boolean => /review|qa|test/i.test(role);
+
 export function parseVerdict(text: string): "PASS" | "FAIL" | null {
   // เอา marker ตัวท้ายสุด (กันมีคำว่า PASS/FAIL ในเนื้อหา)
   const matches = [...text.matchAll(/VERDICT:\s*(PASS|FAIL)/gi)];
@@ -374,8 +377,8 @@ export function graphToWorkflow(
         ? `งานก่อนหน้า:\n${ins.map((p) => c.results[`n${p}`]).filter(Boolean).join("\n---\n")}\n\n`
         : "";
 
-    // gate = agent ที่เป็น reviewer (role มี "review") — ไม่ต้องติ๊กเอง
-    const isGate = /review/i.test(ag.role);
+    // gate = reviewer หรือ QA/tester — ไม่ต้องติ๊กเอง
+    const isGate = isGateRole(ag.role);
     if (isGate) {
       if (ins.length !== 1) throw new Error(`review "${ag.name}" ต้องมีเส้นเข้า 1 เส้น (ตรวจงานชิ้นเดียว)`);
       const authorId = `n${ins[0]}`;
@@ -383,8 +386,8 @@ export function graphToWorkflow(
         id: `n${n.id}`, kind: "gate", agent: n.agent, title: `${ag.name} · review`,
         onPass: forward(n.id), onFail: authorId, maxRetry: 3,
         build: (c) =>
-          `[Pipeline · review]\nโจทย์: ${c.task}\n\nงานที่ต้อง review:\n${c.results[authorId] ?? ""}\n\n` +
-          `review ตามบทบาทของคุณ — หา bug / ปัญหา / ความครบถ้วน.` + GATE_RULE,
+          `[Pipeline · ด่านตรวจ]\nโจทย์: ${c.task}\n\nงานที่ต้องตรวจ:\n${c.results[authorId] ?? ""}\n\n` +
+          `ตรวจ/ทดสอบงานนี้ตามบทบาทของคุณ — หาปัญหา / ความถูกต้อง / ความครบถ้วน.` + GATE_RULE,
       };
     } else {
       wf[`n${n.id}`] = {

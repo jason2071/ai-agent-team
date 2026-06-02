@@ -112,6 +112,15 @@ export default function App() {
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   // target ที่เลือกไว้ส่งต่อ (multi-select)
   const [handoffSel, setHandoffSel] = useState<string[]>([]);
+  // sequential handoff: ส่งต่อแบบลำดับ (รอเสร็จทีละตัว) แทน parallel
+  const [seqMode, setSeqMode] = useState(false);
+  // chain ที่กำลังรัน (sequential) — null = ไม่มี
+  const [chain, setChain] = useState<{
+    steps: string[];
+    idx: number;
+    task: string;
+    cwd: string | null;
+  } | null>(null);
   // project folder ต่อ agent (ส่งเป็น cwd) + ไฟล์แนบสำหรับข้อความถัดไป
   const [cwds, setCwds] = useState<Record<string, string>>(persisted.cwds);
   const [attached, setAttached] = useState<
@@ -120,6 +129,9 @@ export default function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
+  // mirror chats ลง ref -> advanceChain อ่าน output ล่าสุดได้ (กัน stale closure ใน handleEvent)
+  const chatsRef = useRef(chats);
+  chatsRef.current = chats;
 
   // persist chats/sessions/cwds ทุกครั้งที่เปลี่ยน
   useEffect(() => {
@@ -163,6 +175,54 @@ export default function App() {
     });
   }
 
+  function chainNotify(msg: string) {
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("Auto-chain", { body: msg });
+    }
+  }
+
+  // output ล่าสุดของ agent (assistant message ตัวสุดท้าย) — อ่านจาก ref กัน stale
+  function lastAssistantOf(agentId: string): string {
+    const list = chatsRef.current[agentId] ?? [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (list[i].role === "assistant" && list[i].text.trim()) return list[i].text.trim();
+    }
+    return "";
+  }
+
+  // sequential chain: agent เสร็จ -> ป้อน output ให้ตัวถัดไป (หรือจบ/หยุดถ้า error)
+  function advanceChain(finishedId: string, ok: boolean) {
+    setChain((ch) => {
+      if (!ch || ch.steps[ch.idx] !== finishedId) return ch; // ไม่ใช่ step ของ chain นี้
+      if (!ok) {
+        chainNotify(`หยุดที่ขั้น ${ch.idx + 1}/${ch.steps.length} — เจอ error`);
+        return null;
+      }
+      const next = ch.idx + 1;
+      if (next >= ch.steps.length) {
+        chainNotify("เสร็จครบทุกขั้น ✓");
+        return null;
+      }
+      const target = agents.find((a) => a.id === ch.steps[next]);
+      if (!target) return null; // agent ถูกลบกลางทาง
+      const prev = agents.find((a) => a.id === finishedId);
+      const out = lastAssistantOf(finishedId);
+      const prompt =
+        `[Auto-chain ขั้น ${next + 1}/${ch.steps.length}]\n` +
+        `โจทย์ตั้งต้น:\n${ch.task}\n\n` +
+        `ผลจาก ${prev?.name ?? finishedId}${prev ? ` (${prev.role})` : ""}:\n${out}\n\n` +
+        `---\n@${target.name} ทำงานต่อตามบทบาทของคุณ`;
+      setActiveId(target.id); // ตามดูตัวที่กำลังทำ
+      runFor(target, prompt, `[รับช่วง · ขั้น ${next + 1}/${ch.steps.length}]`, ch.cwd, null);
+      return { ...ch, idx: next };
+    });
+  }
+
+  function stopChain() {
+    if (chain) stop(chain.steps[chain.idx]);
+    setChain(null);
+  }
+
   // จัดการ event ที่ Rust ส่งกลับมาทาง Channel (เรียกต่อ 1 send)
   function handleEvent(ev: StreamEvent) {
     if (ev.kind === "session") {
@@ -191,12 +251,14 @@ export default function App() {
     if (ev.kind === "done") {
       setBusy((b) => ({ ...b, [ev.agent_id]: false }));
       notifyDone(ev.agent_id, true);
+      advanceChain(ev.agent_id, true);
       return;
     }
     if (ev.kind === "error") {
       setChats((c) => appendDelta(c, ev.agent_id, `\n[error] ${ev.message}`));
       setBusy((b) => ({ ...b, [ev.agent_id]: false }));
       notifyDone(ev.agent_id, false);
+      advanceChain(ev.agent_id, false);
     }
   }
 
@@ -302,6 +364,26 @@ export default function App() {
       .filter((m) => m.text.trim())
       .map((m) => `${m.role === "user" ? "ผู้ใช้" : active.name}: ${m.text.trim()}`)
       .join("\n\n");
+
+    // sequential: รันทีละตัวตามลำดับเลือก, ตัวถัดไปรับ output ตัวก่อน (ผ่าน advanceChain)
+    if (seqMode) {
+      const steps = handoffSel.filter((id) => !isBusy(id));
+      if (steps.length === 0) return;
+      const cwd = cwds[activeId] ?? null;
+      const first = AGENTS.find((a) => a.id === steps[0])!;
+      const prompt =
+        `[Auto-chain ขั้น 1/${steps.length}]\n` +
+        `[ส่งต่อจาก ${active.name} (${active.role})]\n\n` +
+        `บทสนทนาก่อนหน้า:\n${transcript}\n\n` +
+        `---\n@${first.name} ทำงานต่อตามบทบาทของคุณ`;
+      setChain({ steps, idx: 0, task: transcript, cwd });
+      setActiveId(first.id);
+      runFor(first, prompt, `[รับช่วงจาก ${active.name} · 1/${steps.length}]`, cwd, null);
+      setHandoffSel([]);
+      return;
+    }
+
+    // parallel (เดิม): ยิงทุกตัวพร้อมกัน
     for (const tid of handoffSel) {
       if (isBusy(tid)) continue;
       const target = AGENTS.find((a) => a.id === tid)!;
@@ -396,6 +478,14 @@ export default function App() {
                 🗑 ล้าง
               </button>
               <span className="handoff-label">ส่งต่อ →</span>
+              <label className="seq-toggle" title="ส่งต่อแบบลำดับ — รอเสร็จทีละตัว แล้วป้อน output ให้ตัวถัดไป">
+                <input
+                  type="checkbox"
+                  checked={seqMode}
+                  onChange={(e) => setSeqMode(e.target.checked)}
+                />
+                ลำดับ
+              </label>
               {agents.filter((a) => a.id !== activeId).map((a) => {
                 const sel = handoffSel.includes(a.id);
                 return (
@@ -420,12 +510,34 @@ export default function App() {
                 className="handoff-go"
                 onClick={handoffSend}
                 disabled={handoffSel.length === 0}
+                title={seqMode ? "เริ่ม chain ตามลำดับที่เลือก" : "ส่งพร้อมกันทุกตัว"}
               >
-                ส่ง ({handoffSel.length})
+                {seqMode ? "▸ chain" : "ส่ง"} ({handoffSel.length})
               </button>
             </div>
           )}
         </header>
+
+        {chain && (
+          <div className="chain-banner">
+            <span className="chain-flow">
+              🔗{" "}
+              {chain.steps
+                .map((id, i) => {
+                  const nm = agents.find((a) => a.id === id)?.name ?? id;
+                  return i === chain.idx ? `[${nm}]` : nm;
+                })
+                .join(" → ")}
+            </span>
+            <span className="chain-step">
+              กำลังทำ {agents.find((a) => a.id === chain.steps[chain.idx])?.name} ({chain.idx + 1}/
+              {chain.steps.length})
+            </span>
+            <button className="chain-stop" onClick={stopChain}>
+              หยุด
+            </button>
+          </div>
+        )}
 
         <div className="messages" ref={scrollRef}>
           {messages.length === 0 && (

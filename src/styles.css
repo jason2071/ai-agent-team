@@ -168,6 +168,46 @@ body {
   color: var(--muted);
 }
 .reset-btn:hover { color: #c0392b; border-color: #e3b4ae; }
+.seq-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.seq-toggle input { accent-color: var(--text); cursor: pointer; }
+
+/* chain progress banner */
+.chain-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px 14px 0;
+  padding: 7px 12px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(125,211,252,0.16), rgba(167,139,250,0.16));
+  border: 1px solid rgba(125,211,252,0.4);
+  font-size: 12px;
+  color: var(--text);
+}
+.chain-flow { font-weight: 700; }
+.chain-step { color: var(--muted); }
+.chain-stop {
+  margin-left: auto;
+  background: #fff;
+  border: 1px solid #e3b4ae;
+  color: #c0392b;
+  border-radius: 8px;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chain-stop:hover { background: #c0392b; color: #fff; }
 
 .messages {
   flex: 1;

@@ -264,11 +264,7 @@ function EditorInner({
   function onConnect(c: Connection) {
     setEdges((es) => addEdge({ ...c, ...EDGE_OPTS }, es));
   }
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault();
-    const agent = e.dataTransfer.getData("application/agent");
-    if (!agent) return;
-    const pos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+  function addNode(agent: string, pos: { x: number; y: number }) {
     const a = agents.find((x) => x.id === agent);
     setNodes((ns) => [
       ...ns,
@@ -279,6 +275,28 @@ function EditorInner({
         data: { agent, review: false, name: a?.name ?? agent, role: a?.role ?? "", accent: a?.accent ?? "#94a3b8" },
       },
     ]);
+  }
+  // click palette = เพิ่มแบบ cascade (กัน WebKit/Tauri block HTML5 drag)
+  function addNodeCascade(agent: string) {
+    setNodes((ns) => {
+      const i = ns.length;
+      const a = agents.find((x) => x.id === agent);
+      return [
+        ...ns,
+        {
+          id: uid("g"),
+          type: "agent",
+          position: { x: 40 + (i % 4) * 190, y: 30 + Math.floor(i / 4) * 130 },
+          data: { agent, review: false, name: a?.name ?? agent, role: a?.role ?? "", accent: a?.accent ?? "#94a3b8" },
+        },
+      ];
+    });
+  }
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const agent = e.dataTransfer.getData("application/agent");
+    if (!agent) return;
+    addNode(agent, rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }));
   }
 
   function save() {
@@ -308,22 +326,23 @@ function EditorInner({
       </label>
 
       <div className="frow tools">
-        <span>ลาก agent ลง canvas:</span>
+        <span>คลิกเพิ่ม agent:</span>
         {agents.map((a) => (
           <button
             key={a.id}
             className="handoff-btn"
             draggable
             style={{ borderColor: `${a.accent}66`, color: a.accent }}
+            onClick={() => addNodeCascade(a.id)}
             onDragStart={(e) => e.dataTransfer.setData("application/agent", a.id)}
-            title={`ลาก ${a.name} (${a.role}) ลง canvas`}
+            title={`คลิก/ลาก ${a.name} (${a.role}) ลง canvas`}
           >
-            ⠿ {a.name}
+            + {a.name}
           </button>
         ))}
       </div>
       <div className="muted small">
-        ต่อเส้นจากขวา→ซ้ายของ node เพื่อกำหนดลำดับ · แตก 2 เส้น = ทำขนาน · node ที่ติ๊ก <b>review</b> = ตรวจงานตัวก่อนหน้า (ไม่ผ่าน→ตีกลับ ≤3) · ลบ: เลือกแล้วกด Backspace
+        คลิกปุ่ม agent = เพิ่ม node · ลากจากจุดขวาของ node ไปจุดซ้ายอีก node = ต่อเส้น (แตก 2 เส้น = ขนาน) · ติ๊ก <b>review</b> = ตรวจงานตัวก่อนหน้า (ไม่ผ่าน→ตีกลับ ≤3) · ลบ: คลิก node แล้วกด Backspace
       </div>
 
       <div className="pl-canvas" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>

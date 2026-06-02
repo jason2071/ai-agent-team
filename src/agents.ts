@@ -50,7 +50,7 @@ export const AGENTS: Agent[] = [
     accent: "#7dd3fc",
     bg: "radial-gradient(circle at 30% 20%, #0c4a6e 0%, #0a0f1e 60%)",
     initials: "SE",
-    avatar: "/assets/guild_staff/staff/Serena.png",
+    avatar: "/assets/guild_staff/images/Serena.png",
     persona:
       "You are a senior software architect. Design with clean architecture (handler -> service -> repository) and clear boundaries. " +
       "Use whatever stack the requirements state — Go (Fiber), Node.js/TypeScript (Express/NestJS), or others; if unspecified, recommend a fit. " +
@@ -72,7 +72,7 @@ export const AGENTS: Agent[] = [
     accent: "#818cf8",
     bg: "radial-gradient(circle at 30% 25%, #312e81 0%, #0a0f1e 60%)",
     initials: "RE",
-    avatar: "/assets/guild_staff/staff/Rex.png",
+    avatar: "/assets/guild_staff/images/Rex.png",
     allowedTools: ["Read"],
     persona:
       "You are a pragmatic tech lead and orchestrator. Break requirements into concrete tasks, make technical decisions and tradeoffs, " +
@@ -95,7 +95,7 @@ export const AGENTS: Agent[] = [
     accent: "#c084fc",
     bg: "radial-gradient(circle at 30% 30%, #4c1d95 0%, #0a0f1e 60%)",
     initials: "MI",
-    avatar: "/assets/guild_staff/staff/Mia.png",
+    avatar: "/assets/guild_staff/images/Mia.png",
     allowedTools: ["Read"],
     persona:
       "You are a UX/UI designer. Design user flows, wireframes, component specs, and design systems (design tokens, spacing, typography, color). " +
@@ -117,7 +117,7 @@ export const AGENTS: Agent[] = [
     accent: "#22d3ee",
     bg: "radial-gradient(circle at 70% 30%, #155e75 0%, #0a0f1e 60%)",
     initials: "KE",
-    avatar: "/assets/guild_staff/staff/Kelvin.png",
+    avatar: "/assets/guild_staff/images/Kelvin.png",
     allowedTools: ["Read", "Write", "Edit", "Bash"],
     permissionMode: "bypassPermissions",
     persona:
@@ -140,7 +140,7 @@ export const AGENTS: Agent[] = [
     accent: "#34d399",
     bg: "radial-gradient(circle at 70% 30%, #064e3b 0%, #0a0f1e 60%)",
     initials: "YU",
-    avatar: "/assets/guild_staff/staff/Yuri.png",
+    avatar: "/assets/guild_staff/images/Yuri.png",
     allowedTools: ["Read", "Write", "Edit", "Bash"],
     permissionMode: "bypassPermissions",
     persona:
@@ -163,7 +163,7 @@ export const AGENTS: Agent[] = [
     accent: "#a3e635",
     bg: "radial-gradient(circle at 70% 30%, #365314 0%, #0a0f1e 60%)",
     initials: "FN",
-    avatar: "/assets/guild_staff/staff/Finn.png",
+    avatar: "/assets/guild_staff/images/Finn.png",
     allowedTools: ["Read", "Write", "Edit", "Bash"],
     permissionMode: "bypassPermissions",
     persona:
@@ -186,7 +186,7 @@ export const AGENTS: Agent[] = [
     accent: "#f472b6",
     bg: "radial-gradient(circle at 70% 70%, #831843 0%, #0a0f1e 60%)",
     initials: "EV",
-    avatar: "/assets/guild_staff/staff/Eve.png",
+    avatar: "/assets/guild_staff/images/Eve.png",
     allowedTools: ["Read", "Write", "Edit", "Bash"],
     permissionMode: "bypassPermissions",
     persona:
@@ -210,7 +210,7 @@ export const AGENTS: Agent[] = [
     accent: "#fbbf24",
     bg: "radial-gradient(circle at 30% 70%, #78350f 0%, #0a0f1e 60%)",
     initials: "DA",
-    avatar: "/assets/guild_staff/staff/Darius.png",
+    avatar: "/assets/guild_staff/images/Darius.png",
     allowedTools: ["Read"],
     persona:
       "You are a meticulous code reviewer. Point out bugs, performance issues, security risks, and clean-architecture violations. " +

@@ -5,6 +5,7 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+*.tsbuildinfo
 
 # Tauri / Rust
 src-tauri/target/
@@ -33,6 +34,9 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+
+# Playwright MCP scratch output
+.playwright-mcp/
 
 # Misc
 *.zip

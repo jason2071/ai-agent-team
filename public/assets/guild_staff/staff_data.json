@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Kelvin",
+    "role": "Reception Officer",
+    "personality": "Friendly, approachable, optimistic",
+    "dialogueStyle": "Warm and welcoming",
+    "age": 24,
+    "likes": "Meeting people, helping newcomers",
+    "dislikes": "Rude behavior",
+    "dailyRoutine": "Greets visitors and processes registrations",
+    "questFunctions": "New adventurer registration and guidance",
+    "relationship": "Close friends with Lilia"
+  },
+  {
+    "name": "Lilia",
+    "role": "Front Desk Assistant",
+    "personality": "Cheerful, caring, supportive",
+    "dialogueStyle": "Friendly and energetic",
+    "age": 22,
+    "likes": "Tea, conversations",
+    "dislikes": "Conflict",
+    "dailyRoutine": "Supports reception desk",
+    "questFunctions": "Visitor assistance",
+    "relationship": "Best friends with Kelvin"
+  },
+  {
+    "name": "Mia",
+    "role": "Quest Announcement Officer",
+    "personality": "Outgoing, enthusiastic, adventurous",
+    "dialogueStyle": "Excited and expressive",
+    "age": 21,
+    "likes": "Events, exploration",
+    "dislikes": "Boredom",
+    "dailyRoutine": "Posts quest notices",
+    "questFunctions": "Quest publication",
+    "relationship": "Gets along with everyone"
+  },
+  {
+    "name": "Rex",
+    "role": "Recruitment Officer",
+    "personality": "Bold, energetic, competitive",
+    "dialogueStyle": "Direct and motivating",
+    "age": 27,
+    "likes": "Challenges, strong adventurers",
+    "dislikes": "Laziness",
+    "dailyRoutine": "Interviews recruits",
+    "questFunctions": "Adventurer evaluation",
+    "relationship": "Often debates with Van"
+  },
+  {
+    "name": "Eve",
+    "role": "Bounty Coordinator",
+    "personality": "Determined, resourceful, ambitious",
+    "dialogueStyle": "Confident and focused",
+    "age": 25,
+    "likes": "Tracking targets",
+    "dislikes": "Broken promises",
+    "dailyRoutine": "Monitors bounties",
+    "questFunctions": "Bounty management",
+    "relationship": "Friendly rivalry with Rex"
+  },
+  {
+    "name": "Van",
+    "role": "Treasury Officer",
+    "personality": "Quiet, strategic, practical",
+    "dialogueStyle": "Short and professional",
+    "age": 32,
+    "likes": "Profit, efficiency",
+    "dislikes": "Waste",
+    "dailyRoutine": "Manages treasury",
+    "questFunctions": "Reward payments",
+    "relationship": "Keeps an eye on Rex"
+  },
+  {
+    "name": "Serena",
+    "role": "Risk Assessment Officer",
+    "personality": "Reliable, logical, cautious",
+    "dialogueStyle": "Calm and professional",
+    "age": 28,
+    "likes": "Analysis, planning",
+    "dislikes": "Recklessness",
+    "dailyRoutine": "Reviews missions",
+    "questFunctions": "Mission risk evaluation",
+    "relationship": "Trusted by Van and Finn"
+  },
+  {
+    "name": "Yuri",
+    "role": "Guild Librarian",
+    "personality": "Intelligent, observant, curious",
+    "dialogueStyle": "Thoughtful and informative",
+    "age": 30,
+    "likes": "Research, rare books",
+    "dislikes": "Noise",
+    "dailyRoutine": "Maintains library",
+    "questFunctions": "Knowledge support for quests",
+    "relationship": "Collaborates with Darius"
+  },
+  {
+    "name": "Darius",
+    "role": "Records Officer",
+    "personality": "Organized, analytical, detail-oriented",
+    "dialogueStyle": "Formal and precise",
+    "age": 29,
+    "likes": "Books, documentation",
+    "dislikes": "Missing information",
+    "dailyRoutine": "Maintains guild archives",
+    "questFunctions": "Member records and documentation",
+    "relationship": "Works closely with Yuri"
+  },
+  {
+    "name": "Finn",
+    "role": "Achievement Archivist",
+    "personality": "Calm, polite, scholarly",
+    "dialogueStyle": "Respectful and composed",
+    "age": 26,
+    "likes": "History, achievements",
+    "dislikes": "Disorder",
+    "dailyRoutine": "Updates rankings",
+    "questFunctions": "Achievement tracking",
+    "relationship": "Frequently assists Darius"
+  }
+]

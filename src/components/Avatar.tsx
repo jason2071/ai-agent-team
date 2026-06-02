@@ -1,7 +1,7 @@
 import type { Agent } from "../agents";
 
 // sprite staff กลาง — fallback เมื่อ agent ไม่ได้กำหนด avatar เอง
-const GUILD_SPRITE = "/assets/guild_staff/staff/Lilia.png";
+const GUILD_SPRITE = "/assets/guild_staff/images/Lilia.png";
 
 export function Avatar({
   agent,

@@ -26,6 +26,7 @@ export function OfficeView({
   activeId,
   onSelect,
   onManage,
+  onPipeline,
 }: {
   agents: Agent[];
   busy: Record<string, boolean>;
@@ -33,6 +34,7 @@ export function OfficeView({
   activeId: string | null;
   onSelect: (id: string) => void;
   onManage: () => void;
+  onPipeline: () => void;
 }) {
   const isBusy = (id: string) => !!busy[id];
   const runningCount = agents.filter((a) => isBusy(a.id)).length;
@@ -84,7 +86,10 @@ export function OfficeView({
       {/* top bar */}
       <div className="office-top">
         <h1 className="brand">GUILD<span>นักผจญภัย</span></h1>
-        <button className="office-toggle" onClick={onManage}>⚙ จัดการนักผจญภัย</button>
+        <div className="office-actions">
+          <button className="office-toggle" onClick={onPipeline}>🧭 Pipeline</button>
+          <button className="office-toggle" onClick={onManage}>⚙ จัดการนักผจญภัย</button>
+        </div>
       </div>
 
       {/* panel: สถานะกิลด์ */}

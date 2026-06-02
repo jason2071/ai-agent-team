@@ -175,3 +175,79 @@ export const FEATURE_WF: Workflow = {
 };
 
 export const WORKFLOWS: Workflow[] = [FEATURE_WF];
+
+// ===== Pipeline ที่ผู้ใช้สร้างเอง (linear + review gate) =====
+export interface PipelineStep {
+  agent: string;     // agent id
+  gate?: boolean;    // true = step นี้เป็น review gate ของ task ก่อนหน้า
+}
+export interface PipelinePreset {
+  id: string;
+  name: string;
+  steps: PipelineStep[];
+}
+
+// แปลง ordered steps -> Workflow ที่ engine รันได้ (linear; gate ตีกลับ step ก่อนหน้า loop<=3)
+// label: resolve ชื่อ/บทบาทจาก agent id (รองรับ custom agent ที่ไม่อยู่ใน AGENTS)
+export function buildLinearWorkflow(
+  name: string,
+  steps: PipelineStep[],
+  label: (agentId: string) => { name: string; role: string },
+): Workflow {
+  const n = steps.length;
+  const nodes: Record<string, WFNode> = {};
+  const nextId = (i: number) => (i + 1 < n ? `s${i + 1}` : "done");
+
+  steps.forEach((step, i) => {
+    const id = `s${i}`;
+    const ag = label(step.agent);
+
+    if (step.gate) {
+      const authorId = `s${i - 1}`; // gate รีวิว step ก่อนหน้าเสมอ (builder การันตี i>0)
+      nodes[id] = {
+        id,
+        kind: "gate",
+        agent: step.agent,
+        title: `${ag.name} · review`,
+        onPass: nextId(i),
+        onFail: authorId,
+        maxRetry: 3,
+        build: (c) =>
+          `[Pipeline · review]\n` +
+          `โจทย์: ${c.task}\n\n` +
+          `งานที่ต้อง review:\n${c.results[authorId] ?? ""}\n\n` +
+          `review ตามบทบาทของคุณ — หา bug / ปัญหา / ความครบถ้วน.` +
+          GATE_RULE,
+      };
+      return;
+    }
+
+    // task: หา task ก่อนหน้าที่ใกล้สุด (ข้าม gate) เพื่อต่อ output + gate ที่รีวิว step นี้ (feedback ตอน retry)
+    let prevTaskIdx = -1;
+    for (let j = i - 1; j >= 0; j--) {
+      if (!steps[j].gate) { prevTaskIdx = j; break; }
+    }
+    const prevTaskId = prevTaskIdx >= 0 ? `s${prevTaskIdx}` : null;
+    const prevName = prevTaskIdx >= 0 ? label(steps[prevTaskIdx].agent).name : "";
+    const reviewGateId = steps[i + 1]?.gate ? `s${i + 1}` : null;
+
+    nodes[id] = {
+      id,
+      kind: "task",
+      agent: step.agent,
+      title: `${ag.name} · ${ag.role}`,
+      next: nextId(i),
+      build: (c) =>
+        `[Pipeline${i === 0 ? " · เริ่ม" : ""}]\n` +
+        `โจทย์: ${c.task}\n\n` +
+        (prevTaskId && c.results[prevTaskId]
+          ? `งานก่อนหน้า (${prevName}):\n${c.results[prevTaskId]}\n\n`
+          : "") +
+        (reviewGateId ? fb(c, reviewGateId) : "") +
+        `ทำงานต่อตามบทบาทของคุณ ให้ใช้ได้จริง.`,
+    };
+  });
+
+  nodes.done = { id: "done", kind: "done", title: "เสร็จ ✓" };
+  return { id: `pl-${name}`, name, start: "s0", nodes };
+}

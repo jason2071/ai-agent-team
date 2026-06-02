@@ -9,7 +9,15 @@ import { AGENTS, type Agent } from "./agents";
 import { Avatar } from "./components/Avatar";
 import { ManageAgents } from "./components/ManageAgents";
 import { OfficeView } from "./components/OfficeView";
-import { FEATURE_WF, parseVerdict, type Workflow, type WFRun } from "./workflow";
+import { PipelineBuilder } from "./components/PipelineBuilder";
+import {
+  FEATURE_WF,
+  parseVerdict,
+  buildLinearWorkflow,
+  type Workflow,
+  type WFRun,
+  type PipelinePreset,
+} from "./workflow";
 import "./styles.css";
 
 type StreamEvent =
@@ -32,6 +40,20 @@ interface Message {
 const LS_KEY = "ai-agent-team:v1";
 const LS_AGENTS = "ai-agent-team:agents:v1";
 const LS_SEEN = "ai-agent-team:seen-defaults:v1"; // default id ที่เคยโผล่แล้ว
+const LS_PIPELINES = "ai-agent-team:pipelines:v1";
+
+function loadPipelines(): PipelinePreset[] {
+  try {
+    const raw = localStorage.getItem(LS_PIPELINES);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (Array.isArray(p)) return p;
+    }
+  } catch {
+    /* corrupt -> เริ่มใหม่ */
+  }
+  return [];
+}
 
 // โหลด agents: ใช้ของ user (แก้/ลบไว้) + merge default "ตัวใหม่" ที่ยังไม่เคยเห็น
 // (เพิ่ม default agent ใหม่แล้ว user เก่าเห็นด้วย แต่ไม่ฟื้นตัวที่ user ลบไปแล้ว)
@@ -125,6 +147,8 @@ export default function App() {
   const persisted = useRef(loadPersisted()).current;
   const [agents, setAgents] = useState<Agent[]>(loadAgents);
   const [showManage, setShowManage] = useState(false);
+  const [showPipeline, setShowPipeline] = useState(false);
+  const [pipelines, setPipelines] = useState<PipelinePreset[]>(loadPipelines);
   const [chatOpen, setChatOpen] = useState(false);
   const [activeId, setActiveId] = useState<string>(loadAgents()[0].id);
   // เก็บประวัติแชท + session ต่อ agent (persist localStorage)
@@ -183,6 +207,15 @@ export default function App() {
       /* ข้าม */
     }
   }, [agents]);
+
+  // persist pipelines
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_PIPELINES, JSON.stringify(pipelines));
+    } catch {
+      /* ข้าม */
+    }
+  }, [pipelines]);
 
   // ขอสิทธิ์ desktop notification + จด default ที่เห็นแล้ว ครั้งเดียวตอน mount
   useEffect(() => {
@@ -390,6 +423,17 @@ export default function App() {
     syncWf();
   }
 
+  // รัน pipeline ที่ผู้ใช้สร้าง -> build Workflow ตอน runtime แล้วส่งเข้า engine
+  function runPipeline(preset: PipelinePreset, task: string) {
+    const label = (id: string) => {
+      const a = agents.find((x) => x.id === id);
+      return { name: a?.name ?? id, role: a?.role ?? "" };
+    };
+    const def = buildLinearWorkflow(preset.name, preset.steps, label);
+    setShowPipeline(false);
+    startWorkflow(def, task, projectDir ?? effectiveCwd(activeId));
+  }
+
   // จัดการ event ที่ Rust ส่งกลับมาทาง Channel (เรียกต่อ 1 send)
   function handleEvent(ev: StreamEvent) {
     if (ev.kind === "session") {
@@ -479,8 +523,12 @@ export default function App() {
         onEvent,
       });
     } catch (err) {
+      // invoke throw เอง (Tauri ไม่พร้อม / spawn ไม่ได้) -> ไม่มี event flow
+      // ต้องแจ้ง chain/workflow ว่า fail เอง ไม่งั้นค้าง "running"
       setChats((c) => appendDelta(c, agent.id, `\n[invoke error] ${err}`));
       setBusy((b) => ({ ...b, [agent.id]: false }));
+      advanceChain(agent.id, false);
+      advanceWorkflow(agent.id, false);
     }
   }
 
@@ -610,6 +658,25 @@ export default function App() {
     }
   }
 
+  // แนบ docs -> เขียนลง {projectDir}/docs/ จริง ให้ทุก agent Read ได้ คืน relative path
+  async function attachDocsToProject(): Promise<string[]> {
+    if (!projectDir) return [];
+    const sel = await open({ multiple: true });
+    const paths = Array.isArray(sel) ? sel : sel ? [sel] : [];
+    const rels: string[] = [];
+    for (const p of paths) {
+      const name = p.split("/").pop() ?? p;
+      try {
+        const text = await invoke<string>("read_file_text", { path: p });
+        await invoke("write_file_text", { path: `${projectDir}/docs/${name}`, content: text });
+        rels.push(`docs/${name}`);
+      } catch {
+        /* binary/อ่านไม่ได้ -> ข้าม */
+      }
+    }
+    return rels;
+  }
+
   // override เฉพาะ agent ปัจจุบัน (ตั้งใจแยก project)
   async function pickAgentFolder() {
     const dir = await open({
@@ -667,6 +734,7 @@ export default function App() {
           setChatOpen(true);
         }}
         onManage={() => setShowManage(true)}
+        onPipeline={() => setShowPipeline(true)}
       />
 
       {/* chat drawer — เปิดทับกิลด์ตอนคลิกตัวละคร */}
@@ -920,6 +988,18 @@ export default function App() {
           onSave={setAgents}
           onClose={() => setShowManage(false)}
           onReset={() => setAgents(AGENTS)}
+        />
+      )}
+      {showPipeline && (
+        <PipelineBuilder
+          agents={agents}
+          pipelines={pipelines}
+          projectDir={projectDir}
+          onSave={setPipelines}
+          onClose={() => setShowPipeline(false)}
+          onRun={runPipeline}
+          onPickProject={pickProject}
+          onAttachDocs={attachDocsToProject}
         />
       )}
     </div>

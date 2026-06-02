@@ -1,5 +1,45 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ReactNode, UIEvent } from "react";
 import type { Agent } from "../agents";
+
+// scroll container + custom themed scrollbar (WKWebView ไม่ honor native scrollbar styling)
+function OpBody({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = useState({ h: 0, top: 0, show: false });
+
+  const recalc = () => {
+    const el = ref.current;
+    if (!el) return;
+    const { scrollHeight: sh, clientHeight: ch, scrollTop: st } = el;
+    if (sh <= ch + 2) {
+      setThumb((t) => (t.show ? { ...t, show: false } : t));
+      return;
+    }
+    const trackH = ch - 12; // เว้นขอบบน/ล่าง
+    const h = Math.max(28, (ch / sh) * trackH);
+    const offset = (st / (sh - ch)) * (trackH - h);
+    setThumb({ h, top: st + 6 + offset, show: true });
+  };
+
+  useEffect(() => {
+    recalc();
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(recalc);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [children]);
+
+  return (
+    <div className="op-body" ref={ref} onScroll={(_e: UIEvent<HTMLDivElement>) => recalc()}>
+      {children}
+      {thumb.show && (
+        <div className="op-scroll-thumb" style={{ height: thumb.h, top: thumb.top }} />
+      )}
+    </div>
+  );
+}
 
 const LS_PANELS = "ai-agent-team:panels:v1";
 function loadPanels(): { left: boolean; right: boolean } {
@@ -122,7 +162,7 @@ export function OfficeView({
           <span className="op-caret">{collapsed.left ? "▸" : "▾"}</span>
         </button>
         {!collapsed.left && (
-          <div className="op-body">
+          <OpBody>
             {agents.map((a) => (
               <div key={a.id} className="op-row" onClick={() => onSelect(a.id)}>
                 <span className="dot-accent" style={{ background: a.accent }} />
@@ -132,7 +172,7 @@ export function OfficeView({
                 </span>
               </div>
             ))}
-          </div>
+          </OpBody>
         )}
       </div>
 
@@ -143,7 +183,7 @@ export function OfficeView({
           <span className="op-caret">{collapsed.right ? "▸" : "▾"}</span>
         </button>
         {!collapsed.right && (
-          <div className="op-body">
+          <OpBody>
             {feed.length === 0 && <div className="op-empty">ยังไม่มีเควสต์ — คลิกนักผจญภัยเริ่มสั่งงาน</div>}
             {feed.slice(0, 7).map((f, i) => (
               <div key={i} className="feed-item">
@@ -151,7 +191,7 @@ export function OfficeView({
                 <span>{f.text}</span>
               </div>
             ))}
-          </div>
+          </OpBody>
         )}
       </div>
     </div>

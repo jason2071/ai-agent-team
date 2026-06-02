@@ -902,21 +902,25 @@ body {
 }
 /* body = ส่วนเดียวที่ scroll (scrollbar อยู่ใต้ header ไม่พาด header) */
 .op-body {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 8px 12px 12px;
-  /* scrollbar โทนดำเข้มเหมือน panel แต่อ่อนกว่านิดให้เห็นต่าง (standard prop = WKWebView honor) */
-  scrollbar-width: thin;
-  scrollbar-color: #28324c #0c1120;
+  /* ซ่อน native scrollbar — ใช้ custom thumb (.op-scroll-thumb) แทน คุมสีได้ทุก engine */
+  scrollbar-width: none;
 }
-.op-body::-webkit-scrollbar { width: 8px; }
-.op-body::-webkit-scrollbar-track { background: #0c1120; border-radius: 999px; }
-.op-body::-webkit-scrollbar-thumb {
-  background: #28324c;
+.op-body::-webkit-scrollbar { width: 0; height: 0; display: none; }
+/* custom scrollbar thumb — navy เข้มโทน panel แต่เห็นต่าง */
+.op-scroll-thumb {
+  position: absolute;
+  right: 3px;
+  width: 5px;
   border-radius: 999px;
+  background: #2c3754;
+  border: 1px solid rgba(125,211,252,0.12);
+  pointer-events: none;
 }
-.op-body::-webkit-scrollbar-thumb:hover { background: #3a496e; }
 .office-panel.left { left: 18px; }
 .office-panel.right { right: 18px; }
 .op-head {

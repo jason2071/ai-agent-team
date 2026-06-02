@@ -17,6 +17,10 @@ interface Message {
   text: string;
 }
 
+function fmtTok(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`;
+}
+
 // ยืนหน้า station ใน guild.png (left%, top%, scale) — หลบ panel ซ้าย/ขวา
 // depth: top มาก = อยู่หน้า = scale ใหญ่. ต้องมี slot ≥ จำนวน agent (กันทับ)
 // ลำดับ AGENTS: Serena, Rex, Mia, Kelvin, Yuri, Finn, Eve, Darius
@@ -39,6 +43,7 @@ export function OfficeView({
   onSelect,
   onManage,
   onPipeline,
+  totals,
 }: {
   agents: Agent[];
   busy: Record<string, boolean>;
@@ -47,6 +52,7 @@ export function OfficeView({
   onSelect: (id: string) => void;
   onManage: () => void;
   onPipeline: () => void;
+  totals?: { cost: number; in: number; out: number };
 }) {
   const isBusy = (id: string) => !!busy[id];
   const runningCount = agents.filter((a) => isBusy(a.id)).length;
@@ -99,6 +105,11 @@ export function OfficeView({
       <div className="office-top">
         <h1 className="brand">GUILD<span>นักผจญภัย</span></h1>
         <div className="office-actions">
+          {totals && totals.cost > 0 && (
+            <span className="cost-chip" title={`รวมทั้ง session · ↑${fmtTok(totals.in)} ↓${fmtTok(totals.out)} tokens`}>
+              💰 ${totals.cost.toFixed(4)}
+            </span>
+          )}
           <button className="office-toggle" onClick={onPipeline}>🧭 Pipeline</button>
           <button className="office-toggle" onClick={onManage}>⚙ จัดการนักผจญภัย</button>
         </div>

@@ -23,6 +23,7 @@ import {
   isGateRole,
   type PipelinePreset,
   type PipelineGraph,
+  type WFHistory,
 } from "../workflow";
 
 function uid(p = "pl") {
@@ -69,6 +70,8 @@ export function PipelineBuilder({
   onRun,
   onPickProject,
   onAttachDocs,
+  history = [],
+  onClearHistory,
 }: {
   agents: Agent[];
   pipelines: PipelinePreset[];
@@ -78,11 +81,15 @@ export function PipelineBuilder({
   onRun: (preset: PipelinePreset, task: string) => void;
   onPickProject: () => void;
   onAttachDocs: () => Promise<string[]>;
+  history?: WFHistory[];
+  onClearHistory?: () => void;
 }) {
   const [draft, setDraft] = useState<PipelinePreset | null>(null);
   const [runTarget, setRunTarget] = useState<PipelinePreset | null>(null);
   const [task, setTask] = useState("");
   const [docs, setDocs] = useState<string[]>([]);
+  const [histOpen, setHistOpen] = useState(false);
+  const [openLog, setOpenLog] = useState<string | null>(null);
 
   const label = (id: string) => {
     const a = agents.find((x) => x.id === id);
@@ -196,6 +203,38 @@ export function PipelineBuilder({
                 </div>
               ))}
             </div>
+
+            {history.length > 0 && (
+              <div className="wf-history">
+                <button className="wf-hist-head" onClick={() => setHistOpen((o) => !o)}>
+                  <span>ประวัติการรัน · {history.length}</span>
+                  <span className="op-caret">{histOpen ? "▾" : "▸"}</span>
+                </button>
+                {histOpen && (
+                  <>
+                    {history.map((h) => (
+                      <div key={h.id} className="wf-hist-row">
+                        <div className="wf-hist-line" onClick={() => setOpenLog((x) => (x === h.id ? null : h.id))}>
+                          <span className={`wf-hist-stat ${h.status}`}>{h.status === "done" ? "✓" : "✗"}</span>
+                          <b>{h.name}</b>
+                          <span className="muted small">${h.cost.toFixed(4)}</span>
+                          <span className="muted small">{new Date(h.finishedAt).toLocaleString()}</span>
+                        </div>
+                        {openLog === h.id && (
+                          <div className="wf-hist-log">
+                            {h.log.map((l, i) => <div key={i} className="wf-line">{l}</div>)}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {onClearHistory && (
+                      <button className="mini danger" onClick={onClearHistory}>ล้างประวัติ</button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="modal-foot">
               <button
                 className="mini primary"

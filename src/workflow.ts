@@ -47,6 +47,22 @@ export interface WFRun {
   joinArrived: Record<string, number>; // joinId -> branch ที่มาถึงแล้ว
   status: "running" | "done" | "halted";
   log: string[];                       // บรรทัด progress สำหรับ banner
+  cost: number;                        // $ สะสมของ run นี้
+  inTok: number;                       // input tokens สะสม
+  outTok: number;                      // output tokens สะสม
+  haltedAt?: string;                   // nodeId ที่ทำให้ halt (ใช้ retry)
+  startedAt: number;                   // Date.now() ตอนเริ่ม run
+}
+
+// สรุป run ที่จบแล้ว — เก็บลง localStorage ดูย้อนหลัง
+export interface WFHistory {
+  id: string;
+  name: string;
+  status: "done" | "halted";
+  startedAt: number;
+  finishedAt: number;
+  cost: number;
+  log: string[];
 }
 
 // reviewer ต้องจบด้วย marker นี้ engine ถึง parse ได้

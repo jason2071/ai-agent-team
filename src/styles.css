@@ -224,12 +224,50 @@ body {
 .wf-head { display: flex; align-items: center; gap: 10px; }
 .wf-name { font-weight: 700; }
 .wf-status { color: var(--muted); }
-.wf-head .chain-stop { margin-left: auto; }
+/* ดันกลุ่มขวา (cost/retry/stop/close) ชิดขวา — ตัวแรกได้ auto, ตัวถัด ๆ ชิดกัน */
+.wf-head > :is(.wf-cost, .wf-retry, .chain-stop) { margin-left: auto; }
+.wf-head > :is(.wf-cost, .wf-retry, .chain-stop) ~ :is(.wf-cost, .wf-retry, .chain-stop) { margin-left: 0; }
+.wf-cost { font-size: 11px; color: #b45309; font-weight: 700; font-family: "Space Mono", monospace; }
+.wf-retry {
+  border: 1px solid #f0b429; background: rgba(240,180,41,0.14); color: #92400e;
+  border-radius: 7px; padding: 3px 9px; font-size: 11px; cursor: pointer;
+}
+.wf-retry:hover { background: #f0b429; color: #422006; }
 .wf-log { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+.wf-log.full { max-height: 200px; overflow: auto; }
 .wf-line { font-size: 11px; color: var(--muted); font-family: "Space Mono", monospace; }
+.wf-log-toggle {
+  margin-top: 4px; background: none; border: none; color: #7c6df2;
+  font-size: 11px; cursor: pointer; padding: 0;
+}
+.wf-log-toggle:hover { text-decoration: underline; }
 
 /* office top actions */
-.office-actions { display: flex; gap: 8px; }
+.office-actions { display: flex; gap: 8px; align-items: center; }
+.cost-chip {
+  font-size: 11px; font-weight: 700; color: #fbbf24; font-family: "Space Mono", monospace;
+  padding: 4px 9px; border-radius: 8px; border: 1px solid rgba(251,191,36,0.4);
+  background: rgba(251,191,36,0.12);
+}
+
+/* run history (pipeline list view) */
+.wf-history { margin: 4px 0 10px; border-top: 1px solid var(--border, #2a2f44); padding-top: 8px; }
+.wf-hist-head {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  background: none; border: none; cursor: pointer; color: var(--text); font-size: 13px; font-weight: 600;
+  padding: 4px 0;
+}
+.wf-hist-row { font-size: 12px; }
+.wf-hist-line {
+  display: flex; align-items: center; gap: 8px; padding: 5px 4px; cursor: pointer; border-radius: 6px;
+}
+.wf-hist-line:hover { background: rgba(125,211,252,0.08); }
+.wf-hist-stat.done { color: #34d399; }
+.wf-hist-stat.halted { color: #ef4444; }
+.wf-hist-log {
+  margin: 2px 0 6px 22px; padding: 6px 10px; border-radius: 6px;
+  background: rgba(0,0,0,0.04); max-height: 180px; overflow: auto;
+}
 
 /* pipeline builder */
 .pl-summary { font-size: 12px; color: var(--muted); margin-bottom: 10px; }

@@ -20,6 +20,7 @@ import {
   graphToWorkflow,
   type Workflow,
   type WFRun,
+  type WFHistory,
   type PipelinePreset,
 } from "./workflow";
 import "./styles.css";
@@ -45,6 +46,32 @@ const LS_KEY = "ai-agent-team:v1";
 const LS_AGENTS = "ai-agent-team:agents:v1";
 const LS_SEEN = "ai-agent-team:seen-defaults:v1"; // default id ที่เคยโผล่แล้ว
 const LS_PIPELINES = "ai-agent-team:pipelines:v1";
+const LS_WF_HISTORY = "ai-agent-team:wf-history:v1"; // ประวัติ workflow run
+
+type Totals = { cost: number; in: number; out: number };
+
+function loadTotals(): Totals {
+  try {
+    const r = localStorage.getItem(LS_KEY);
+    if (r) {
+      const p = JSON.parse(r);
+      if (p.totals) return { cost: +p.totals.cost || 0, in: +p.totals.in || 0, out: +p.totals.out || 0 };
+    }
+  } catch {
+    /* ข้าม */
+  }
+  return { cost: 0, in: 0, out: 0 };
+}
+
+function loadWfHistory(): WFHistory[] {
+  try {
+    const r = localStorage.getItem(LS_WF_HISTORY);
+    if (r) return JSON.parse(r);
+  } catch {
+    /* ข้าม */
+  }
+  return [];
+}
 
 function loadPipelines(): PipelinePreset[] {
   try {
@@ -178,6 +205,12 @@ export default function App() {
   const wfRef = useRef<WFRun | null>(null);
   const [wf, setWf] = useState<WFRun | null>(null);
   const syncWf = () => setWf(wfRef.current ? { ...wfRef.current } : null);
+  const [wfLogOpen, setWfLogOpen] = useState(false);
+  // ประวัติ workflow run ที่จบ/halt แล้ว
+  const [wfHistory, setWfHistory] = useState<WFHistory[]>(loadWfHistory);
+  // cost สะสมทั้ง session (ref = กัน stale ใน handleEvent, state = render)
+  const totalsRef = useRef<Totals>(loadTotals());
+  const [totals, setTotals] = useState<Totals>(totalsRef.current);
   // global project folder — agent ทุกตัวใช้ร่วมกันเป็น default (ทำงาน project เดียวกัน)
   const [projectDir, setProjectDir] = useState<string | null>(persisted.projectDir);
   // override per-agent — ถ้าตั้งใจให้ตัวนี้ทำงานคนละ folder (ไม่มี = ใช้ projectDir)
@@ -197,11 +230,20 @@ export default function App() {
   // persist chats/sessions/cwds ทุกครั้งที่เปลี่ยน
   useEffect(() => {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ chats, sessions, cwds, projectDir }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ chats, sessions, cwds, projectDir, totals }));
     } catch {
       /* quota เต็ม -> ข้าม */
     }
-  }, [chats, sessions, cwds, projectDir]);
+  }, [chats, sessions, cwds, projectDir, totals]);
+
+  // persist ประวัติ workflow run
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_WF_HISTORY, JSON.stringify(wfHistory));
+    } catch {
+      /* ข้าม */
+    }
+  }, [wfHistory]);
 
   // persist agents
   useEffect(() => {
@@ -325,9 +367,29 @@ export default function App() {
       joinArrived: {},
       status: "running",
       log: [`▶ เริ่ม ${def.name}`],
+      cost: 0,
+      inTok: 0,
+      outTok: 0,
+      startedAt: Date.now(),
     };
+    setWfLogOpen(false);
     syncWf();
     startWFNode(def.start);
+  }
+
+  // เก็บ run ที่จบ/halt ลงประวัติ (ล่าสุดอยู่บน, เก็บ 20)
+  function archiveRun(run: WFRun) {
+    if (run.status !== "done" && run.status !== "halted") return;
+    const entry: WFHistory = {
+      id: `${run.wf.id}-${run.startedAt}`,
+      name: run.wf.name,
+      status: run.status,
+      startedAt: run.startedAt,
+      finishedAt: Date.now(),
+      cost: run.cost,
+      log: [...run.log],
+    };
+    setWfHistory((h) => [entry, ...h.filter((x) => x.id !== entry.id)].slice(0, 20));
   }
 
   function startWFNode(nodeId: string) {
@@ -347,6 +409,7 @@ export default function App() {
       run.status = "done";
       run.log.push(`✓ ${node.title}`);
       syncWf();
+      archiveRun(run);
       chainNotify("Workflow เสร็จครบ ✓");
       return;
     }
@@ -404,8 +467,10 @@ export default function App() {
 
     if (!ok) {
       run.status = "halted";
+      run.haltedAt = nodeId;
       run.log.push(`✗ ${"title" in node ? node.title : nodeId} error — หยุด workflow`);
       syncWf();
+      archiveRun(run);
       chainNotify("Workflow หยุด — เจอ error");
       return;
     }
@@ -425,8 +490,10 @@ export default function App() {
         run.retries[nodeId] = cnt;
         if (cnt > node.maxRetry) {
           run.status = "halted";
+          run.haltedAt = nodeId;
           run.log.push(`✗ ${node.title}: ไม่ผ่านครบ ${node.maxRetry} รอบ — หยุด`);
           syncWf();
+          archiveRun(run);
           chainNotify(`Workflow หยุด: ${node.title} ไม่ผ่าน ${node.maxRetry} รอบ`);
         } else {
           run.log.push(`↩ ${node.title}: ${v ?? "ไม่พบ verdict"} — ตีกลับ (รอบ ${cnt}/${node.maxRetry})`);
@@ -442,8 +509,29 @@ export default function App() {
     if (!run) return;
     for (const aid of Object.keys(run.running)) stop(aid);
     run.status = "halted";
+    run.haltedAt = Object.values(run.running)[0] ?? run.haltedAt;
     run.log.push("■ หยุดโดยผู้ใช้");
     syncWf();
+    archiveRun(run);
+  }
+
+  // halt แล้ว -> ลองรันใหม่จากจุดที่ค้าง (gate -> ตีกลับ author, อื่น -> รัน node เดิมซ้ำ)
+  function retryWorkflow() {
+    const run = wfRef.current;
+    if (!run || run.status !== "halted" || !run.haltedAt) return;
+    const n = run.wf.nodes[run.haltedAt];
+    if (!n) return;
+    run.status = "running";
+    run.log.push(`↻ ลองใหม่: ${"title" in n ? n.title : run.haltedAt}`);
+    run.haltedAt = undefined;
+    if (n.kind === "gate") {
+      run.retries[n.id] = 0;
+      syncWf();
+      startWFNode(n.onFail);
+    } else {
+      syncWf();
+      startWFNode(n.id);
+    }
   }
 
   // รัน pipeline ที่ผู้ใช้สร้าง -> build Workflow ตอน runtime แล้วส่งเข้า engine
@@ -480,6 +568,21 @@ export default function App() {
         ...c,
         [ev.agent_id]: [...(c[ev.agent_id] ?? []), { role: "system", text: meta }],
       }));
+      // สะสมยอดรวม session
+      totalsRef.current = {
+        cost: totalsRef.current.cost + ev.cost_usd,
+        in: totalsRef.current.in + ev.input_tokens,
+        out: totalsRef.current.out + ev.output_tokens,
+      };
+      setTotals(totalsRef.current);
+      // ถ้า agent นี้อยู่ใน workflow ที่รันอยู่ -> บวกเข้า run นั้น
+      const run = wfRef.current;
+      if (run && run.running[ev.agent_id]) {
+        run.cost += ev.cost_usd;
+        run.inTok += ev.input_tokens;
+        run.outTok += ev.output_tokens;
+        syncWf();
+      }
       return;
     }
     if (ev.kind === "done") {
@@ -760,6 +863,7 @@ export default function App() {
         }}
         onManage={() => setShowManage(true)}
         onPipeline={() => setShowPipeline(true)}
+        totals={totals}
       />
 
       {/* chat drawer — เปิดทับกิลด์ตอนคลิกตัวละคร */}
@@ -853,17 +957,30 @@ export default function App() {
               <span className="wf-status">
                 {wf.status === "running" ? "กำลังรัน" : wf.status === "done" ? "เสร็จ ✓" : "หยุด"}
               </span>
+              {wf.cost > 0 && (
+                <span className="wf-cost">💰 ${wf.cost.toFixed(4)} · ↓{fmtTok(wf.outTok)}</span>
+              )}
               {wf.status === "running" ? (
                 <button className="chain-stop" onClick={stopWorkflow}>หยุด</button>
               ) : (
-                <button className="chain-stop" onClick={() => { wfRef.current = null; setWf(null); }}>ปิด</button>
+                <>
+                  {wf.status === "halted" && wf.haltedAt && (
+                    <button className="wf-retry" onClick={retryWorkflow}>↻ ลองรอบใหม่</button>
+                  )}
+                  <button className="chain-stop" onClick={() => { wfRef.current = null; setWf(null); }}>ปิด</button>
+                </>
               )}
             </div>
-            <div className="wf-log">
-              {wf.log.slice(-4).map((l, i) => (
+            <div className={`wf-log ${wfLogOpen ? "full" : ""}`}>
+              {(wfLogOpen ? wf.log : wf.log.slice(-4)).map((l, i) => (
                 <div key={i} className="wf-line">{l}</div>
               ))}
             </div>
+            {wf.log.length > 4 && (
+              <button className="wf-log-toggle" onClick={() => setWfLogOpen((o) => !o)}>
+                {wfLogOpen ? "▴ ย่อ" : `▾ ดูทั้งหมด (${wf.log.length})`}
+              </button>
+            )}
           </div>
         )}
 
@@ -1026,6 +1143,8 @@ export default function App() {
             onRun={runPipeline}
             onPickProject={pickProject}
             onAttachDocs={attachDocsToProject}
+            history={wfHistory}
+            onClearHistory={() => setWfHistory([])}
           />
         </Suspense>
       )}

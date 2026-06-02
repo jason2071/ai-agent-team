@@ -432,7 +432,9 @@ export default function App() {
     run.log.push(`▸ ${node.title}`);
     syncWf();
     setActiveId(agent.id); // ตามดูตัวที่กำลังทำ
-    runFor(agent, prompt, `[WF: ${node.title}]`, run.cwd, null);
+    // node แรกโชว์โจทย์ที่ผู้ใช้พิมพ์ (ตัวถัด ๆ โชว์ label เพราะ prompt = ผลของ node ก่อน)
+    const shown = nodeId === run.wf.start ? `🧭 ${run.task}` : `[WF: ${node.title}]`;
+    runFor(agent, prompt, shown, run.cwd, null);
   }
 
   function routeWF(targetId: string) {

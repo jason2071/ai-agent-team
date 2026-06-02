@@ -77,7 +77,7 @@ export function OfficeView({
 
   return (
     <div className="office">
-      {/* ฉากห้อง — bg = /assets/guild.png */}
+      {/* ฉากห้อง — bg = /assets/bg/guild.png */}
       <div className="office-room">
 
         {agents.map((a, i) => {

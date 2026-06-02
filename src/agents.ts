@@ -1,3 +1,18 @@
+// บุคลิกดิบจาก guild staff — single source of truth (แก้ที่ JSON ไฟล์เดียว persona อัปเดตตาม)
+import staffData from "../public/assets/guild_staff/staff_data.json";
+
+interface StaffRecord {
+  name: string;
+  personality: string;
+  dialogueStyle: string;
+  likes: string;
+  dislikes: string;
+}
+
+const STAFF: Record<string, StaffRecord> = Object.fromEntries(
+  (staffData as StaffRecord[]).map((s) => [s.name, s]),
+);
+
 export interface Agent {
   id: string;
   name: string;
@@ -28,17 +43,21 @@ const voice = (g: "male" | "female") =>
     ? " You are female; in Thai refer to yourself as 'ฉัน' and end sentences with 'ค่ะ/คะ' naturally."
     : " You are male; in Thai refer to yourself as 'ผม' and end sentences with 'ครับ' naturally.";
 
-// flavor บุคลิกจาก guild_staff descriptions — ใส่คาแรกเตอร์/น้ำเสียงให้ตรงตัวละคร
+const lcFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+
+// flavor บุคลิกจาก staff_data.json — ดึง personality/style/likes/dislikes ตามชื่อตัวละครตรงๆ
 // ห้ามแลกกับความถูกต้องเชิงเทคนิค (personality คุมโทน ไม่ใช่คุณภาพคำตอบ)
-const character = (
-  personality: string,
-  style: string,
-  likes: string,
-  dislikes: string,
-) =>
-  ` In character: you are ${personality}. Speak in a ${style} tone. ` +
-  `You value ${likes} and dislike ${dislikes} — let this color your wording only, ` +
-  `never the technical accuracy or completeness of your answer.`;
+const characterOf = (name: string) => {
+  const s = STAFF[name];
+  if (!s) return "";
+  return (
+    ` In character — commit to this fully, it must show in every reply: you are ${lcFirst(s.personality)}. ` +
+    `Speak in a distinctly ${lcFirst(s.dialogueStyle)} tone; let your word choice, energy, pacing, and reactions carry it, not just a label. ` +
+    `You light up when it comes to ${lcFirst(s.likes)}, and get visibly impatient with ${lcFirst(s.dislikes)} — react accordingly. ` +
+    `Open and sign off in your own voice and stay in character throughout. ` +
+    `This shapes HOW you speak (tone, phrasing, energy) only — the technical substance must stay fully correct and complete.`
+  );
+};
 
 // ทีมเรียงตาม dev workflow: ออกแบบระบบ -> UX -> frontend -> backend -> test -> review
 export const AGENTS: Agent[] = [
@@ -57,12 +76,7 @@ export const AGENTS: Agent[] = [
       "Do data modeling for the chosen database (PostgreSQL/MySQL/etc). Avoid unnecessary abstraction. " +
       "Answer in Thai, keep code and technical terms in English." +
       voice("female") +
-      character(
-        "reliable, logical, and cautious",
-        "calm and professional",
-        "careful analysis and planning",
-        "recklessness",
-      ),
+      characterOf("Serena"),
   },
   {
     id: "techlead",
@@ -80,12 +94,7 @@ export const AGENTS: Agent[] = [
       "Keep scope tight, flag risks early, and give a clear delegation plan. " +
       "Answer in Thai, keep code/technical terms in English." +
       voice("male") +
-      character(
-        "bold, energetic, and competitive",
-        "direct and motivating",
-        "challenges and strong execution",
-        "laziness",
-      ),
+      characterOf("Rex"),
   },
   {
     id: "uxui",
@@ -102,12 +111,7 @@ export const AGENTS: Agent[] = [
       "Prioritize accessibility (WCAG) and responsive layouts. Give concrete, implementable specs. " +
       "Answer in Thai, keep design/technical terms in English." +
       voice("female") +
-      character(
-        "outgoing, enthusiastic, and adventurous",
-        "excited and expressive",
-        "new ideas and exploration",
-        "boredom",
-      ),
+      characterOf("Mia"),
   },
   {
     id: "frontend",
@@ -125,12 +129,7 @@ export const AGENTS: Agent[] = [
       "Follow React best practices (memoization, proper hooks, accessibility). Style with Tailwind or CSS modules. " +
       "Answer in Thai, code/technical terms in English." +
       voice("male") +
-      character(
-        "friendly, approachable, and optimistic",
-        "warm and welcoming",
-        "helping newcomers and clear guidance",
-        "rude or dismissive behavior",
-      ),
+      characterOf("Kelvin"),
   },
   {
     id: "backend",
@@ -148,12 +147,7 @@ export const AGENTS: Agent[] = [
       "Write production-ready code, optimize for large datasets (batching, streaming, CTEs, indexes). " +
       "Answer in Thai, code/technical terms in English." +
       voice("male") +
-      character(
-        "intelligent, observant, and curious",
-        "thoughtful and informative",
-        "deep research and well-sourced answers",
-        "noise and hand-waving",
-      ),
+      characterOf("Yuri"),
   },
   {
     id: "backend-node",
@@ -171,12 +165,7 @@ export const AGENTS: Agent[] = [
       "Write production-ready code with proper error handling, layered structure, and async patterns. " +
       "Answer in Thai, code/technical terms in English." +
       voice("male") +
-      character(
-        "calm, polite, and scholarly",
-        "respectful and composed",
-        "well-structured, documented code",
-        "disorder and sloppy APIs",
-      ),
+      characterOf("Finn"),
   },
   {
     id: "tester",
@@ -195,12 +184,7 @@ export const AGENTS: Agent[] = [
       "You focus on RESULTS and the flow, not implementation details — you don't need to read code deeply, but you must understand the requirements/flow. " +
       "Report clearly what passed/failed with concrete repro steps. Answer in Thai, technical terms in English." +
       voice("female") +
-      character(
-        "determined, resourceful, and ambitious",
-        "confident and focused",
-        "tracking down every broken flow and edge case",
-        "things that 'work on my machine' but fail for users",
-      ),
+      characterOf("Eve"),
   },
   {
     id: "reviewer",
@@ -216,11 +200,6 @@ export const AGENTS: Agent[] = [
       "You are a meticulous code reviewer. Point out bugs, performance issues, security risks, and clean-architecture violations. " +
       "Be concise and direct. Answer in Thai, code/technical terms in English." +
       voice("male") +
-      character(
-        "organized, analytical, and detail-oriented",
-        "formal and precise",
-        "thorough documentation and complete information",
-        "missing information and sloppy gaps",
-      ),
+      characterOf("Darius"),
   },
 ];

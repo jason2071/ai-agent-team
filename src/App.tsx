@@ -285,7 +285,7 @@ export default function App() {
     const img = new Image();
     img.onload = hide;
     img.onerror = hide;
-    img.src = "/assets/guild.png";
+    img.src = "/assets/bg/guild.png";
     const t = setTimeout(hide, 2500);
     return () => clearTimeout(t);
   }, []);

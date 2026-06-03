@@ -1,4 +1,4 @@
-# AI Agent Team (Tauri + React)
+# Forgeline (Tauri + React)
 
 ทีม AI agent สำหรับงาน dev — แต่ละ agent มี persona / bg / avatar ของตัวเอง
 ขับเคลื่อนด้วย **Claude subscription** ผ่าน `claude -p` (headless Claude Code)

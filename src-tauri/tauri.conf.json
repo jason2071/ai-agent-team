@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "AI Agent Team",
+  "productName": "Forgeline",
   "version": "0.2.0",
   "identifier": "com.macc.aiagentteam",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "AI Agent Team",
+        "title": "Forgeline",
         "width": 1200,
         "height": 800,
         "minWidth": 900,

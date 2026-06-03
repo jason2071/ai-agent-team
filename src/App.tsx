@@ -642,7 +642,8 @@ export default function App() {
       await invoke("run_agent", {
         args: {
           agent_id: agent.id,
-          persona: agent.persona,
+          // บังคับชื่อ/บทบาทให้ตรงกับ UI — กัน claude ตั้งชื่อเอง(เช่น "Phenny")
+          persona: `Your name is ${agent.name}, the ${agent.role}. Always introduce and refer to yourself as ${agent.name} — never use any other name.\n\n${agent.persona}`,
           prompt,
           model: agent.model ?? null,
           resume,

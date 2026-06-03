@@ -63,8 +63,15 @@ jobs:
 
             Download the installer for your OS from the assets below.
 
-            **macOS** — `.dmg` (universal). App is **unsigned**: first launch needs
-            right-click → Open to get past Gatekeeper.
+            **macOS** — `.dmg` (universal). App is **unsigned/un-notarized**, so
+            Gatekeeper shows _"Apple could not verify ... is free of malware"_.
+            To open it:
+
+            - **System Settings → Privacy & Security** → scroll down → **Open Anyway**
+              → confirm. (On macOS Sequoia, right-click → Open no longer works — use
+              this.)
+            - Or run in Terminal:
+              `xattr -dr com.apple.quarantine "/Applications/AI Agent Team.app"`
 
             **Windows** — `.msi` or `.exe` (NSIS). App is **unsigned**: SmartScreen
             shows "Windows protected your PC" → More info → Run anyway.

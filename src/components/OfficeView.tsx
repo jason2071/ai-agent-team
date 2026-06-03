@@ -75,6 +75,17 @@ const SLOTS = [
   { l: 72, t: 76, s: 1.18 }, // lower right
 ];
 
+// ขอบเขตที่ตัวละครเดินเตร่ได้ (เป็น % ของห้อง) — กันออกนอกฉาก/ใต้ panel มากเกินไป
+const ROOM = { lMin: 13, lMax: 87, tMin: 26, tMax: 80 };
+// depth: ยิ่ง top มาก (อยู่หน้า) ยิ่ง scale ใหญ่ — แทน s ตายตัวเดิม
+function scaleForTop(t: number): number {
+  const k = (t - ROOM.tMin) / (ROOM.tMax - ROOM.tMin);
+  return 0.82 + Math.min(1, Math.max(0, k)) * (1.22 - 0.82);
+}
+
+// ตำแหน่ง/สถานะการเดินของแต่ละ agent
+interface Pos { l: number; t: number; flip: boolean; walking: boolean; ms: number; }
+
 export function OfficeView({
   agents,
   busy,
@@ -96,6 +107,63 @@ export function OfficeView({
 }) {
   const isBusy = (id: string) => !!busy[id];
   const runningCount = agents.filter((a) => isBusy(a.id)).length;
+
+  // ── ให้ตัวละคร "เดินไปเดินมา" ตอนว่าง ───────────────────────────
+  // เก็บตำแหน่งปัจจุบันต่อ agent; เริ่มจาก SLOTS เดิม แล้วสุ่มเป้าหมายใหม่เรื่อย ๆ
+  const [pos, setPos] = useState<Record<string, Pos>>(() => {
+    const o: Record<string, Pos> = {};
+    agents.forEach((a, i) => {
+      const s = SLOTS[i % SLOTS.length];
+      o[a.id] = { l: s.l, t: s.t, flip: false, walking: false, ms: 0 };
+    });
+    return o;
+  });
+  const hoverRef = useRef<string | null>(null);
+
+  // sync เมื่อ agent ถูกเพิ่ม/ลบ — ให้ตัวใหม่มีตำแหน่งเริ่ม, ตัดตัวที่หายไป
+  useEffect(() => {
+    setPos((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      agents.forEach((a, i) => {
+        if (!next[a.id]) {
+          const s = SLOTS[i % SLOTS.length];
+          next[a.id] = { l: s.l, t: s.t, flip: false, walking: false, ms: 0 };
+          changed = true;
+        }
+      });
+      for (const k of Object.keys(next)) {
+        if (!agents.some((a) => a.id === k)) { delete next[k]; changed = true; }
+      }
+      return changed ? next : prev;
+    });
+  }, [agents]);
+
+  // ลูปสุ่มเดิน: ทุก ~1.5s ตัวที่ว่าง (ไม่ busy / ไม่ถูก hover) มีโอกาสเลือกจุดใหม่
+  // ระยะเวลา transition คำนวณจากระยะทาง → ความเร็วเดินคงที่; flip หันตามทิศ
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPos((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        for (const a of agents) {
+          if (isBusy(a.id) || hoverRef.current === a.id) continue;
+          const cur = prev[a.id];
+          if (!cur || cur.walking) continue;     // กำลังเดินอยู่ก็ปล่อยให้ถึงก่อน
+          if (Math.random() > 0.45) continue;    // ไม่ได้ขยับทุกครั้ง — ดูเป็นธรรมชาติ
+          const nl = ROOM.lMin + Math.random() * (ROOM.lMax - ROOM.lMin);
+          const nt = ROOM.tMin + Math.random() * (ROOM.tMax - ROOM.tMin);
+          const dist = Math.hypot(nl - cur.l, nt - cur.t);
+          const ms = Math.round(Math.max(1000, dist * 170)); // ~ความเร็วเดิน
+          next[a.id] = { l: nl, t: nt, flip: nl < cur.l, walking: true, ms };
+          changed = true;
+        }
+        return changed ? next : prev;
+      });
+    }, 1500);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agents, busy]);
   // พับ panel เก็บได้ — กันบังตัวละคร (persist localStorage)
   const [collapsed, setCollapsed] = useState<{ left: boolean; right: boolean }>(loadPanels);
   useEffect(() => {
@@ -123,15 +191,32 @@ export function OfficeView({
         {agents.map((a, i) => {
           const slot = SLOTS[i % SLOTS.length];
           const running = isBusy(a.id);
+          const p = pos[a.id] ?? { l: slot.l, t: slot.t, flip: false, walking: false, ms: 0 };
+          const sc = scaleForTop(p.t);
+          // ตอน busy ให้หยุดทำงานกับที่ (bob); ตอนว่างเดินไปมา (walk)
+          const walking = p.walking && !running;
           return (
             <button
               key={a.id}
-              className={`desk ${a.id === activeId ? "sel" : ""} ${running ? "running" : ""}`}
-              style={{ left: `${slot.l}%`, top: `${slot.t}%`, transform: `translate(-50%,-50%) scale(${slot.s})`, ["--accent" as string]: a.accent }}
+              className={`desk ${a.id === activeId ? "sel" : ""} ${running ? "running" : ""} ${walking ? "walking" : ""}`}
+              style={{
+                left: `${p.l}%`,
+                top: `${p.t}%`,
+                transform: `translate(-50%,-50%) scale(${sc})`,
+                transition: `left ${p.ms}ms linear, top ${p.ms}ms linear, transform ${Math.max(p.ms, 260)}ms linear, filter .15s`,
+                ["--accent" as string]: a.accent,
+              }}
+              onTransitionEnd={() =>
+                setPos((prev) => (prev[a.id]?.walking ? { ...prev, [a.id]: { ...prev[a.id], walking: false } } : prev))
+              }
+              onMouseEnter={() => { hoverRef.current = a.id; }}
+              onMouseLeave={() => { if (hoverRef.current === a.id) hoverRef.current = null; }}
               onClick={() => onSelect(a.id)}
               title={`คุยกับ ${a.name}`}
             >
-              <img className="guild-sprite" src={a.avatar} alt={a.name} draggable={false} />
+              <span className="sprite-flip" style={{ transform: p.flip ? "scaleX(-1)" : "none" }}>
+                <img className="guild-sprite" src={a.avatar} alt={a.name} draggable={false} />
+              </span>
               <div className="desk-tag" style={{ borderColor: `${a.accent}55` }}>
                 <span className={`stat-dot ${running ? "on" : ""}`} style={{ background: running ? a.accent : "#475569" }} />
                 {a.name}

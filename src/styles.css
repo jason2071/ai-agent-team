@@ -860,6 +860,15 @@ body {
   animation: bob 1.6s ease-in-out infinite;
 }
 @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+/* wrapper สำหรับ flip ซ้าย/ขวา (แยกจาก bob/walk ที่อยู่บน img) */
+.sprite-flip { display: block; line-height: 0; transition: transform 0.12s; }
+/* เดินเตร่ตอนว่าง — ย่ำเท้าเป็นจังหวะ ดูเหมือนกำลังเดิน */
+.desk.walking .guild-sprite { animation: walk 0.5s steps(2, end) infinite; }
+@keyframes walk {
+  0%   { transform: translateY(0) rotate(-1.5deg); }
+  50%  { transform: translateY(-4px) rotate(1.5deg); }
+  100% { transform: translateY(0) rotate(-1.5deg); }
+}
 .desk-tag {
   margin-top: 2px;
   display: inline-flex;

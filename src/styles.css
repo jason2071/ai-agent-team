@@ -287,6 +287,11 @@ body {
 .pipeline-step.par { border-color: #34d399; background: #ecfdf5; }
 .par-tag { color: #059669; font-weight: 700; margin-right: 4px; }
 
+/* pipeline editor: name + export/import toolbar */
+.pl-name-row { display: flex; align-items: flex-end; gap: 10px; }
+.pl-name-row > .full { flex: 1; }
+.pl-io { display: flex; gap: 6px; padding-bottom: 2px; }
+
 /* agent palette (scales when many agents) */
 .pl-palette { margin: 6px 0 2px; }
 .pl-palette-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }

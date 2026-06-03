@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { invoke, Channel } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -22,6 +22,7 @@ import {
   type WFRun,
   type WFHistory,
   type PipelinePreset,
+  type PipelineGraph,
 } from "./workflow";
 import "./styles.css";
 
@@ -808,6 +809,37 @@ export default function App() {
     return rels;
   }
 
+  // export graph ที่กำลังแก้ -> ไฟล์ .json (save dialog + เขียนผ่าน Rust)
+  async function exportPipelineGraph(name: string, graph: PipelineGraph) {
+    const slug = (name || "pipeline").trim().replace(/[^\w.-]+/g, "-").toLowerCase() || "pipeline";
+    const path = await save({
+      defaultPath: `${slug}.json`,
+      filters: [{ name: "JSON", extensions: ["json"] }],
+    });
+    if (!path) return;
+    const content = JSON.stringify(
+      { type: "ai-agent-team.pipeline", version: 1, name, graph },
+      null,
+      2,
+    );
+    await invoke("write_file_text", { path, content });
+  }
+
+  // import graph จากไฟล์ .json -> คืน {name?, graph} ให้ editor โหลดลง canvas
+  async function importPipelineGraph(): Promise<{ name?: string; graph: PipelineGraph } | null> {
+    const sel = await open({ multiple: false, filters: [{ name: "JSON", extensions: ["json"] }] });
+    const path = Array.isArray(sel) ? sel[0] : sel;
+    if (!path) return null;
+    const text = await invoke<string>("read_file_text", { path });
+    const data = JSON.parse(text);
+    // รับทั้ง { graph: {...} } (ไฟล์ของเรา) หรือ raw PipelineGraph (มี nodes ตรง ๆ)
+    const graph: PipelineGraph | undefined = data?.graph ?? (Array.isArray(data?.nodes) ? data : undefined);
+    if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) {
+      throw new Error("ไฟล์ไม่ใช่ pipeline graph ที่ถูกต้อง (ต้องมี nodes/edges)");
+    }
+    return { name: typeof data?.name === "string" ? data.name : undefined, graph };
+  }
+
   // override เฉพาะ agent ปัจจุบัน (ตั้งใจแยก project)
   async function pickAgentFolder() {
     const dir = await open({
@@ -1146,6 +1178,8 @@ export default function App() {
             onRun={runPipeline}
             onPickProject={pickProject}
             onAttachDocs={attachDocsToProject}
+            onExportGraph={exportPipelineGraph}
+            onImportGraph={importPipelineGraph}
             history={wfHistory}
             onClearHistory={() => setWfHistory([])}
           />

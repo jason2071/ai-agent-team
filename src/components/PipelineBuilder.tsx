@@ -70,6 +70,8 @@ export function PipelineBuilder({
   onRun,
   onPickProject,
   onAttachDocs,
+  onExportGraph,
+  onImportGraph,
   history = [],
   onClearHistory,
 }: {
@@ -81,6 +83,8 @@ export function PipelineBuilder({
   onRun: (preset: PipelinePreset, task: string) => void;
   onPickProject: () => void;
   onAttachDocs: () => Promise<string[]>;
+  onExportGraph?: (name: string, graph: PipelineGraph) => Promise<void>;
+  onImportGraph?: () => Promise<{ name?: string; graph: PipelineGraph } | null>;
   history?: WFHistory[];
   onClearHistory?: () => void;
 }) {
@@ -129,6 +133,8 @@ export function PipelineBuilder({
             label={label}
             onSubmit={upsert}
             onCancel={() => setDraft(null)}
+            onExportGraph={onExportGraph}
+            onImportGraph={onImportGraph}
           />
         ) : runTarget ? (
           <div className="agent-form">
@@ -251,13 +257,17 @@ export function PipelineBuilder({
 }
 
 // ===== graph editor (react-flow) =====
-function PipelineEditor(props: {
+interface EditorProps {
   draft: PipelinePreset;
   agents: Agent[];
   label: (id: string) => { name: string; role: string };
   onSubmit: (p: PipelinePreset) => void;
   onCancel: () => void;
-}) {
+  onExportGraph?: (name: string, graph: PipelineGraph) => Promise<void>;
+  onImportGraph?: () => Promise<{ name?: string; graph: PipelineGraph } | null>;
+}
+
+function PipelineEditor(props: EditorProps) {
   return (
     <ReactFlowProvider>
       <EditorInner {...props} />
@@ -271,13 +281,9 @@ function EditorInner({
   label,
   onSubmit,
   onCancel,
-}: {
-  draft: PipelinePreset;
-  agents: Agent[];
-  label: (id: string) => { name: string; role: string };
-  onSubmit: (p: PipelinePreset) => void;
-  onCancel: () => void;
-}) {
+  onExportGraph,
+  onImportGraph,
+}: EditorProps) {
   const accentOf = (id: string) => agents.find((a) => a.id === id)?.accent ?? "#94a3b8";
   const toRfNode = (g: { id: string; agent: string; review?: boolean; x: number; y: number }): Node => ({
     id: g.id,
@@ -340,14 +346,19 @@ function EditorInner({
     addNode(agent, rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }));
   }
 
-  function save() {
-    const graph: PipelineGraph = {
+  // แปลง nodes/edges ปัจจุบัน -> PipelineGraph (ใช้ทั้ง save + export)
+  function buildGraph(): PipelineGraph {
+    return {
       nodes: nodes.map((n) => {
         const d = n.data as AgentData;
         return { id: n.id, agent: d.agent, review: !!d.review, x: Math.round(n.position.x), y: Math.round(n.position.y) };
       }),
       edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
     };
+  }
+
+  function save() {
+    const graph = buildGraph();
     try {
       graphToWorkflow(name || "pipeline", graph, label); // validate
     } catch (err) {
@@ -357,14 +368,59 @@ function EditorInner({
     onSubmit({ id: draft.id, name: name || "pipeline", graph });
   }
 
+  async function exportGraph() {
+    if (!onExportGraph) return;
+    try {
+      await onExportGraph(name || "pipeline", buildGraph());
+    } catch (err) {
+      setError(String(err instanceof Error ? err.message : err));
+    }
+  }
+
+  async function importGraph() {
+    if (!onImportGraph) return;
+    try {
+      const r = await onImportGraph();
+      if (!r) return;
+      setNodes(r.graph.nodes.map(toRfNode));
+      setEdges(r.graph.edges.map((e) => ({ id: e.id, source: e.source, target: e.target, ...EDGE_OPTS })));
+      if (r.name) setName(r.name);
+      // validate แบบไม่บล็อก — โหลดเข้า canvas ได้แม้ยัง invalid ให้แก้ต่อ
+      try {
+        graphToWorkflow(r.name || name || "pipeline", r.graph, label);
+        setError(null);
+      } catch (e) {
+        setError(`นำเข้าแล้ว แต่ยัง invalid: ${e instanceof Error ? e.message : e}`);
+      }
+    } catch (err) {
+      setError(String(err instanceof Error ? err.message : err));
+    }
+  }
+
   const valid = !!name.trim() && nodes.length > 0;
 
   return (
     <div className="agent-form">
-      <label className="full">
-        ชื่อ pipeline
-        <input value={name} onChange={(e) => setName(e.target.value)} />
-      </label>
+      <div className="pl-name-row">
+        <label className="full">
+          ชื่อ pipeline
+          <input value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        {(onImportGraph || onExportGraph) && (
+          <div className="pl-io">
+            {onImportGraph && (
+              <button type="button" className="mini" onClick={importGraph} title="โหลด graph จากไฟล์ .json">
+                ⬆ Import
+              </button>
+            )}
+            {onExportGraph && (
+              <button type="button" className="mini" onClick={exportGraph} disabled={nodes.length === 0} title="บันทึก graph เป็นไฟล์ .json">
+                ⬇ Export
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="pl-palette">
         <div className="pl-palette-head">

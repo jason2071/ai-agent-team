@@ -12,7 +12,9 @@ fn main() {
             agent::run_agent,
             agent::cancel_agent,
             agent::read_file_text,
-            agent::write_file_text
+            agent::write_file_text,
+            agent::git_branch_start,
+            agent::git_commit_all
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

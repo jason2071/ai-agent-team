@@ -84,6 +84,76 @@ fn resolve_claude() -> String {
     "claude".to_string()
 }
 
+/// หา absolute path ของ git; GUI app จาก Finder เห็น PATH แค่ /usr/bin:/bin
+/// → เช็ค path ที่พบบ่อยก่อน, ไม่เจอ fallback "git" (ให้ PATH จัดการ)
+fn resolve_git() -> String {
+    for cand in ["/usr/bin/git", "/opt/homebrew/bin/git", "/usr/local/bin/git"] {
+        if Path::new(cand).exists() {
+            return cand.to_string();
+        }
+    }
+    "git".to_string()
+}
+
+/// รัน git ใน cwd แล้ว capture output. คืน Ok(stdout trimmed) หรือ Err(stderr)
+fn run_git(cwd: &str, args: &[&str]) -> Result<String, String> {
+    if cwd.is_empty() {
+        return Err("ไม่มี project directory (cwd)".to_string());
+    }
+    let mut cmd = Command::new(resolve_git());
+    cmd.current_dir(cwd).args(args);
+
+    // augment PATH เหมือน run_agent เผื่อ git resolve subprocess/config helper
+    let extra = claude_bin_dirs().join(":");
+    let path = match std::env::var("PATH") {
+        Ok(p) => format!("{extra}:{p}"),
+        Err(_) => format!("{extra}:/usr/bin:/bin:/usr/sbin:/sbin"),
+    };
+    cmd.env("PATH", path);
+
+    let out = cmd
+        .output()
+        .map_err(|e| format!("รัน git ไม่ได้: {e}"))?;
+    if !out.status.success() {
+        let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
+        return Err(if err.is_empty() {
+            format!("git {} ล้มเหลว", args.join(" "))
+        } else {
+            err
+        });
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
+/// แตก branch ใหม่สำหรับ pipeline run: ตรวจว่าเป็น git repo + working tree สะอาด
+/// (block ถ้า dirty) แล้ว switch -c. cwd ไม่เปลี่ยน → resume session ไม่กระทบ
+#[tauri::command]
+pub fn git_branch_start(cwd: String, branch: String) -> Result<(), String> {
+    run_git(&cwd, &["rev-parse", "--is-inside-work-tree"])
+        .map_err(|_| "ไม่ใช่ git repo (init/เลือก folder ที่เป็น git ก่อน)".to_string())?;
+    let dirty = run_git(&cwd, &["status", "--porcelain"])?;
+    if !dirty.is_empty() {
+        return Err(
+            "working tree มี uncommitted changes — commit/stash ก่อนเริ่ม pipeline".to_string(),
+        );
+    }
+    run_git(&cwd, &["switch", "-c", &branch])?;
+    Ok(())
+}
+
+/// commit งานทั้งหมดบน branch ปัจจุบัน. ถ้าไม่มีอะไรเปลี่ยน คืน "(no changes)"
+/// (ไม่สร้าง empty commit). สำเร็จคืน short hash
+#[tauri::command]
+pub fn git_commit_all(cwd: String, message: String) -> Result<String, String> {
+    run_git(&cwd, &["add", "-A"])?;
+    let staged = run_git(&cwd, &["status", "--porcelain"])?;
+    if staged.is_empty() {
+        return Ok("(no changes)".to_string());
+    }
+    run_git(&cwd, &["commit", "-m", &message])?;
+    run_git(&cwd, &["rev-parse", "--short", "HEAD"])
+}
+
 /// Event ที่ส่งกลับไปให้ frontend ผ่าน Tauri ipc Channel (point-to-point,
 /// ไม่มี race เรื่อง listener registration เหมือน global emit/listen)
 #[derive(Clone, Serialize)]

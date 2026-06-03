@@ -52,6 +52,8 @@ export interface WFRun {
   outTok: number;                      // output tokens สะสม
   haltedAt?: string;                   // nodeId ที่ทำให้ halt (ใช้ retry)
   startedAt: number;                   // Date.now() ตอนเริ่ม run
+  gitBranch?: string;                  // branch ที่ run นี้แตกไว้ (undefined = ไม่เปิด feature)
+  committed?: boolean;                 // กัน auto-commit ซ้ำตอน archiveRun ถูกเรียกหลายครั้ง
 }
 
 // สรุป run ที่จบแล้ว — เก็บลง localStorage ดูย้อนหลัง

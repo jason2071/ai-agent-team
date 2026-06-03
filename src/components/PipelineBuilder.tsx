@@ -72,6 +72,8 @@ export function PipelineBuilder({
   onAttachDocs,
   onExportGraph,
   onImportGraph,
+  gitBranch = false,
+  onToggleGitBranch,
   history = [],
   onClearHistory,
 }: {
@@ -85,6 +87,8 @@ export function PipelineBuilder({
   onAttachDocs: () => Promise<string[]>;
   onExportGraph?: (name: string, graph: PipelineGraph) => Promise<void>;
   onImportGraph?: () => Promise<{ name?: string; graph: PipelineGraph } | null>;
+  gitBranch?: boolean;
+  onToggleGitBranch?: (v: boolean) => void;
   history?: WFHistory[];
   onClearHistory?: () => void;
 }) {
@@ -164,6 +168,18 @@ export function PipelineBuilder({
               </button>
               {docs.map((d) => <span key={d} className="chip" title={d}>{d}</span>)}
             </div>
+
+            {onToggleGitBranch && (
+              <label className="pl-git-toggle" title="ตอนเริ่มรัน จะแตก git branch ใหม่ใน root project แล้วทำงานบน branch นั้น (working tree ต้องสะอาด) — จบแล้ว auto-commit ค้างไว้บน branch ให้รีวิว/merge เอง">
+                <input
+                  type="checkbox"
+                  checked={gitBranch}
+                  disabled={!projectDir}
+                  onChange={(e) => onToggleGitBranch(e.target.checked)}
+                />
+                ⎇ แตก git branch ตอนรัน (แยกงานออกจาก branch ปัจจุบัน)
+              </label>
+            )}
 
             <label className="full">
               Requirements / โจทย์

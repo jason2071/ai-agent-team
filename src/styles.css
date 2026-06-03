@@ -224,6 +224,18 @@ body {
 .wf-head { display: flex; align-items: center; gap: 10px; }
 .wf-name { font-weight: 700; }
 .wf-status { color: var(--muted); }
+.wf-branch {
+  font-size: 11px; font-family: "Space Mono", monospace; font-weight: 700;
+  color: #7dd3fc; background: rgba(125,211,252,0.12);
+  border: 1px solid rgba(125,211,252,0.3); border-radius: 7px; padding: 2px 7px;
+  max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.agent-form label.pl-git-toggle {
+  flex-direction: row; align-items: center; gap: 8px; flex: 0 0 auto;
+  min-width: 0; font-size: 12px; cursor: pointer; color: var(--muted); margin: 2px 0;
+}
+.pl-git-toggle input { flex: 0 0 auto; width: auto; cursor: pointer; }
+.pl-git-toggle:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
 /* ดันกลุ่มขวา (cost/retry/stop/close) ชิดขวา — ตัวแรกได้ auto, ตัวถัด ๆ ชิดกัน */
 .wf-head > :is(.wf-cost, .wf-retry, .chain-stop) { margin-left: auto; }
 .wf-head > :is(.wf-cost, .wf-retry, .chain-stop) ~ :is(.wf-cost, .wf-retry, .chain-stop) { margin-left: 0; }

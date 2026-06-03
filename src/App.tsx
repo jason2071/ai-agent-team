@@ -141,6 +141,7 @@ function loadPersisted(): {
   sessions: Record<string, string>;
   cwds: Record<string, string>;
   projectDir: string | null;
+  useGitBranch: boolean;
 } {
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -151,12 +152,13 @@ function loadPersisted(): {
         sessions: p.sessions ?? {},
         cwds: p.cwds ?? {},
         projectDir: p.projectDir ?? null,
+        useGitBranch: p.useGitBranch ?? false,
       };
     }
   } catch {
     /* corrupt -> เริ่มใหม่ */
   }
-  return { chats: {}, sessions: {}, cwds: {}, projectDir: null };
+  return { chats: {}, sessions: {}, cwds: {}, projectDir: null, useGitBranch: false };
 }
 
 // ดึงตัวเลือกจากคำตอบ agent เพื่อทำปุ่ม quick-reply
@@ -218,6 +220,8 @@ export default function App() {
   const [cwds, setCwds] = useState<Record<string, string>>(persisted.cwds);
   // cwd จริงที่ส่งให้ agent: override ตัวเอง > global project > null
   const effectiveCwd = (id: string): string | null => cwds[id] ?? projectDir;
+  // เปิด = ตอน pipeline เริ่ม จะแตก git branch ใหม่ใน projectDir แล้วทำงานบน branch นั้น
+  const [useGitBranch, setUseGitBranch] = useState<boolean>(persisted.useGitBranch);
   const [attached, setAttached] = useState<
     { name: string; text: string; path?: string; isImage?: boolean }[]
   >([]);
@@ -231,11 +235,14 @@ export default function App() {
   // persist chats/sessions/cwds ทุกครั้งที่เปลี่ยน
   useEffect(() => {
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ chats, sessions, cwds, projectDir, totals }));
+      localStorage.setItem(
+        LS_KEY,
+        JSON.stringify({ chats, sessions, cwds, projectDir, totals, useGitBranch })
+      );
     } catch {
       /* quota เต็ม -> ข้าม */
     }
-  }, [chats, sessions, cwds, projectDir, totals]);
+  }, [chats, sessions, cwds, projectDir, totals, useGitBranch]);
 
   // persist ประวัติ workflow run
   useEffect(() => {
@@ -356,7 +363,22 @@ export default function App() {
   }
 
   // ===== Workflow engine (v2) =====
-  function startWorkflow(def: Workflow, task: string, cwd: string | null) {
+  // ชื่อ branch สำหรับ run: forgeline/<wfId>-YYYYMMDD-HHmmss
+  function branchStamp(): string {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    return (
+      `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}` +
+      `-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`
+    );
+  }
+
+  async function startWorkflow(
+    def: Workflow,
+    task: string,
+    cwd: string | null,
+    gitBranch?: boolean
+  ) {
     if (wfRef.current?.status === "running") return;
     wfRef.current = {
       wf: def,
@@ -375,12 +397,52 @@ export default function App() {
     };
     setWfLogOpen(false);
     syncWf();
+
+    // เปิด feature + มี project dir → แตก git branch ก่อนเริ่มทำงาน
+    if (gitBranch && cwd) {
+      const run = wfRef.current;
+      const branch = `forgeline/${def.id}-${branchStamp()}`;
+      run.log.push(`⎇ กำลังแตก branch ${branch}…`);
+      syncWf();
+      try {
+        await invoke("git_branch_start", { cwd, branch });
+        run.gitBranch = branch;
+        run.log.push(`⎇ branch: ${branch}`);
+        syncWf();
+      } catch (e) {
+        run.status = "halted";
+        run.log.push(`✗ แตก branch ไม่ได้: ${e}`);
+        syncWf();
+        archiveRun(run);
+        chainNotify("Workflow หยุด — แตก git branch ไม่ได้");
+        return;
+      }
+    }
+
     startWFNode(def.start);
   }
 
   // เก็บ run ที่จบ/halt ลงประวัติ (ล่าสุดอยู่บน, เก็บ 20)
   function archiveRun(run: WFRun) {
     if (run.status !== "done" && run.status !== "halted") return;
+    // ถ้า run นี้แตก git branch ไว้ → auto-commit งานทั้งหมดบน branch (ครั้งเดียว)
+    if (run.gitBranch && run.cwd && !run.committed) {
+      run.committed = true;
+      const msg = `forgeline(${run.wf.name}): ${run.task} [${run.status}]`;
+      invoke<string>("git_commit_all", { cwd: run.cwd, message: msg })
+        .then((hash) => {
+          run.log.push(
+            hash === "(no changes)"
+              ? `⎇ ${run.gitBranch}: ไม่มีไฟล์เปลี่ยน (ไม่ commit)`
+              : `⎇ commit ${hash} บน ${run.gitBranch}`
+          );
+          syncWf();
+        })
+        .catch((e) => {
+          run.log.push(`⚠ commit ไม่สำเร็จ: ${e}`);
+          syncWf();
+        });
+    }
     const entry: WFHistory = {
       id: `${run.wf.id}-${run.startedAt}`,
       name: run.wf.name,
@@ -388,7 +450,7 @@ export default function App() {
       startedAt: run.startedAt,
       finishedAt: Date.now(),
       cost: run.cost,
-      log: [...run.log],
+      log: run.gitBranch ? [...run.log, `⎇ branch: ${run.gitBranch}`] : [...run.log],
     };
     setWfHistory((h) => [entry, ...h.filter((x) => x.id !== entry.id)].slice(0, 20));
   }
@@ -547,7 +609,7 @@ export default function App() {
       ? graphToWorkflow(preset.name, preset.graph, label)
       : buildWorkflow(preset.name, preset.steps ?? [], label);
     setShowPipeline(false);
-    startWorkflow(def, task, projectDir ?? effectiveCwd(activeId));
+    startWorkflow(def, task, projectDir ?? effectiveCwd(activeId), useGitBranch);
   }
 
   // จัดการ event ที่ Rust ส่งกลับมาทาง Channel (เรียกต่อ 1 send)
@@ -992,6 +1054,11 @@ export default function App() {
               <span className="wf-status">
                 {wf.status === "running" ? "กำลังรัน" : wf.status === "done" ? "เสร็จ ✓" : "หยุด"}
               </span>
+              {wf.gitBranch && (
+                <span className="wf-branch" title={`pipeline ทำงานบน branch นี้: ${wf.gitBranch}`}>
+                  ⎇ {wf.gitBranch}
+                </span>
+              )}
               {wf.cost > 0 && (
                 <span className="wf-cost">💰 ${wf.cost.toFixed(4)} · ↓{fmtTok(wf.outTok)}</span>
               )}
@@ -1111,10 +1178,22 @@ export default function App() {
                 const task = input.trim();
                 if (!task) return;
                 setInput("");
-                startWorkflow(FEATURE_WF, task, effectiveCwd(activeId));
+                startWorkflow(FEATURE_WF, task, effectiveCwd(activeId), useGitBranch);
               }}
             >
               🧭 Quest
+            </button>
+            <button
+              className={`tool-btn ${useGitBranch ? "" : "ghost"}`}
+              title={
+                useGitBranch
+                  ? "ตอน pipeline เริ่ม จะแตก git branch ใหม่ใน project แล้วทำงานบน branch นั้น (working tree ต้องสะอาด)"
+                  : "เปิด: แตก git branch อัตโนมัติตอนรัน pipeline"
+              }
+              aria-pressed={useGitBranch}
+              onClick={() => setUseGitBranch((v) => !v)}
+            >
+              ⎇ branch{useGitBranch ? " ✓" : ""}
             </button>
             {attached.map((f, i) => (
               <span key={i} className="chip" title={f.name}>
@@ -1180,6 +1259,8 @@ export default function App() {
             onAttachDocs={attachDocsToProject}
             onExportGraph={exportPipelineGraph}
             onImportGraph={importPipelineGraph}
+            gitBranch={useGitBranch}
+            onToggleGitBranch={setUseGitBranch}
             history={wfHistory}
             onClearHistory={() => setWfHistory([])}
           />

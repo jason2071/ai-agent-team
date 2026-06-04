@@ -86,16 +86,6 @@ function scaleForTop(t: number): number {
 // ตำแหน่ง/สถานะการเดินของแต่ละ agent
 interface Pos { l: number; t: number; flip: boolean; walking: boolean; ms: number; }
 
-// agent ที่มี walk-cycle sprite sheet (grid: col=เฟรม, row=state) — เล่น anim + เดินจริง.
-// ตัวที่ไม่อยู่ใน map = ใช้ avatar นิ่ง ยืนกับที่ (ยังไม่มี sheet). เพิ่มทีละตัวได้.
-interface SheetCfg {
-  src: string; frameW: number; frameH: number; cols: number; rows: number;
-  idleRow: number; idleFrames: number; walkRow: number; walkFrames: number;
-}
-const SHEETS: Record<string, SheetCfg> = {
-  architect: { src: "/assets/office/sprites/architect.png", frameW: 96, frameH: 128, cols: 4, rows: 2, idleRow: 0, idleFrames: 2, walkRow: 1, walkFrames: 4 },
-};
-
 export function OfficeView({
   agents,
   busy,
@@ -149,41 +139,7 @@ export function OfficeView({
     });
   }, [agents]);
 
-  // เดินเตร่ — เฉพาะตัวที่มี sprite sheet (เล่น walk-cycle สวย); ตัวอื่นยืนนิ่ง
-  useEffect(() => {
-    const movers = agents.filter((a) => SHEETS[a.id]);
-    if (!movers.length) return;
-    const id = setInterval(() => {
-      setPos((prev) => {
-        const next = { ...prev };
-        let changed = false;
-        for (const a of movers) {
-          if (isBusy(a.id) || hoverRef.current === a.id) continue;
-          const cur = prev[a.id];
-          if (!cur || cur.walking) continue;
-          if (Math.random() > 0.5) continue;
-          const nl = ROOM.lMin + Math.random() * (ROOM.lMax - ROOM.lMin);
-          const nt = ROOM.tMin + Math.random() * (ROOM.tMax - ROOM.tMin);
-          const dist = Math.hypot(nl - cur.l, nt - cur.t);
-          const ms = Math.round(Math.max(900, dist * 150));
-          next[a.id] = { l: nl, t: nt, flip: nl < cur.l, walking: true, ms };
-          changed = true;
-        }
-        return changed ? next : prev;
-      });
-    }, 1600);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agents, busy]);
-
-  // tick ขับ frame ของ sprite sheet (~7fps) — เดินเฉพาะถ้ามีตัวที่มี sheet
-  const [frame, setFrame] = useState(0);
-  useEffect(() => {
-    if (!agents.some((a) => SHEETS[a.id])) return;
-    const id = setInterval(() => setFrame((f) => (f + 1) % 1000), 140);
-    return () => clearInterval(id);
-  }, [agents]);
-
+  // (ปิดการเดินเตร่ชั่วคราว — ตัวละครยืนนิ่งที่ slot; ยังคลิก/bob ตอน running ได้)
   // พับ panel เก็บได้ — กันบังตัวละคร (persist localStorage)
   const [collapsed, setCollapsed] = useState<{ left: boolean; right: boolean }>(loadPanels);
   useEffect(() => {
@@ -235,28 +191,7 @@ export function OfficeView({
               title={`คุยกับ ${a.name}`}
             >
               <span className="sprite-flip" style={{ transform: p.flip ? "scaleX(-1)" : "none" }}>
-                {SHEETS[a.id] ? (() => {
-                  const cfg = SHEETS[a.id];
-                  const dispH = 150 * sc;
-                  const dispW = dispH * (cfg.frameW / cfg.frameH);
-                  const row = walking ? cfg.walkRow : cfg.idleRow;
-                  const frames = walking ? cfg.walkFrames : cfg.idleFrames;
-                  const fx = frame % frames;
-                  return (
-                    <span
-                      className="anim-sprite"
-                      style={{
-                        width: dispW,
-                        height: dispH,
-                        backgroundImage: `url(${cfg.src})`,
-                        backgroundSize: `${cfg.cols * dispW}px ${cfg.rows * dispH}px`,
-                        backgroundPosition: `${-fx * dispW}px ${-row * dispH}px`,
-                      }}
-                    />
-                  );
-                })() : (
-                  <img className="guild-sprite" src={a.avatar} alt={a.name} draggable={false} />
-                )}
+                <img className="guild-sprite" src={a.avatar} alt={a.name} draggable={false} />
               </span>
               <div className="desk-tag" style={{ borderColor: `${a.accent}55` }}>
                 <span className={`stat-dot ${running ? "on" : ""}`} style={{ background: running ? a.accent : "#475569" }} />

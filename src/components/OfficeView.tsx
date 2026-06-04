@@ -139,31 +139,7 @@ export function OfficeView({
     });
   }, [agents]);
 
-  // ลูปสุ่มเดิน: ทุก ~1.5s ตัวที่ว่าง (ไม่ busy / ไม่ถูก hover) มีโอกาสเลือกจุดใหม่
-  // ระยะเวลา transition คำนวณจากระยะทาง → ความเร็วเดินคงที่; flip หันตามทิศ
-  useEffect(() => {
-    const id = setInterval(() => {
-      setPos((prev) => {
-        const next = { ...prev };
-        let changed = false;
-        for (const a of agents) {
-          if (isBusy(a.id) || hoverRef.current === a.id) continue;
-          const cur = prev[a.id];
-          if (!cur || cur.walking) continue;     // กำลังเดินอยู่ก็ปล่อยให้ถึงก่อน
-          if (Math.random() > 0.45) continue;    // ไม่ได้ขยับทุกครั้ง — ดูเป็นธรรมชาติ
-          const nl = ROOM.lMin + Math.random() * (ROOM.lMax - ROOM.lMin);
-          const nt = ROOM.tMin + Math.random() * (ROOM.tMax - ROOM.tMin);
-          const dist = Math.hypot(nl - cur.l, nt - cur.t);
-          const ms = Math.round(Math.max(1000, dist * 170)); // ~ความเร็วเดิน
-          next[a.id] = { l: nl, t: nt, flip: nl < cur.l, walking: true, ms };
-          changed = true;
-        }
-        return changed ? next : prev;
-      });
-    }, 1500);
-    return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agents, busy]);
+  // (ปิดการเดินเตร่ชั่วคราว — ตัวละครยืนนิ่งที่ slot; ยังคลิก/bob ตอน running ได้)
   // พับ panel เก็บได้ — กันบังตัวละคร (persist localStorage)
   const [collapsed, setCollapsed] = useState<{ left: boolean; right: boolean }>(loadPanels);
   useEffect(() => {

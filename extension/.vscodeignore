@@ -1,0 +1,8 @@
+src/**
+**/*.ts
+**/*.map
+esbuild.mjs
+tsconfig.json
+node_modules/**
+.gitignore
+**/.DS_Store

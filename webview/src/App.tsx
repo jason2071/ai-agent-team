@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { invoke, Channel } from "@tauri-apps/api/core";
-import { open, save } from "@tauri-apps/plugin-dialog";
+import { invoke, Channel, open, save } from "./platform";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -293,7 +292,7 @@ export default function App() {
     const img = new Image();
     img.onload = hide;
     img.onerror = hide;
-    img.src = "/assets/bg/guild.png";
+    img.src = "assets/bg/guild.png";
     const t = setTimeout(hide, 2500);
     return () => clearTimeout(t);
   }, []);

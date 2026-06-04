@@ -1,0 +1,40 @@
+{
+  "name": "forgeline",
+  "displayName": "Forgeline — AI Agent Team",
+  "description": "Drive a team of Claude Code agents (guild office view) from inside VS Code.",
+  "version": "0.2.1",
+  "publisher": "forgeline",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.84.0"
+  },
+  "categories": ["Other", "AI"],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "forgeline.openOffice",
+        "title": "Open Office",
+        "category": "Forgeline"
+      }
+    ]
+  },
+  "scripts": {
+    "build:webview": "cd ../webview && npm run build",
+    "build:host": "node esbuild.mjs",
+    "build": "npm run build:webview && npm run build:host",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "vscode:prepublish": "npm run build",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.84.0",
+    "@vscode/vsce": "^3.2.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.5.3"
+  }
+}

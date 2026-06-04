@@ -768,7 +768,7 @@ body {
 .office-room {
   position: absolute;
   inset: 0;
-  background: #060912 url(/assets/bg/guild.png) center / cover no-repeat;
+  background: #060912 url(assets/bg/guild.png) center / cover no-repeat;
 }
 /* vignette ให้ desk-tag/avatar อ่านออกเหนือรูป */
 .office-room::after {
